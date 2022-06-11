@@ -1,0 +1,7 @@
+source:
+  source_dir: '/Users/yigitozgumus/Library/Mobile Documents/iCloud~md~obsidian/Documents/SecondBrain'
+  post_dir: "writing/online/published"
+target:
+  base_dir: "/Users/yigitozgumus/Desktop/target"
+  content_dir: "posts"
+  asset_dir: "assets"

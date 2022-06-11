@@ -1,7 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"lazy-publish/config"
+)
 
 func main() {
-	fmt.Println("project init")
+	inputFile := config.InputFile{
+		Path: "test-config.yaml",
+	}
+	project := config.Project{}
+	project.InitProject(inputFile)
+	fmt.Println(project.Posts)
 }
