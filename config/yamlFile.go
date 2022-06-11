@@ -3,6 +3,7 @@ package config
 import (
 	"io/ioutil"
 	"log"
+	s "strings"
 )
 
 type YamlFile struct {
@@ -31,7 +32,7 @@ func (yf YamlFile) ConvertYamlToProject() Project {
 	postPathList := make([]Post, len(posts))
 	for index, post := range posts {
 		postPathList[index] = Post{
-			Name:     post.Name(),
+			Name:     convertPostName(post.Name()),
 			FilePath: postsDir + "/" + post.Name(),
 		}
 	}
@@ -39,4 +40,9 @@ func (yf YamlFile) ConvertYamlToProject() Project {
 		Base:  base,
 		Posts: postPathList,
 	}
+}
+
+func convertPostName(postName string) string {
+	filtered := s.Split(s.ReplaceAll(s.ToLower(postName), " ", "-"), ".")
+	return filtered[0]
 }

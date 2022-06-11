@@ -7,7 +7,7 @@ import (
 
 func main() {
 	inputFile := config.InputFile{
-		Path: "test-config.yaml",
+		Path: "test-project.yaml",
 	}
 	project := config.Project{}
 	project.InitProject(inputFile)
