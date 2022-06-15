@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"lazy-publish/config"
 )
 
@@ -11,5 +10,5 @@ func main() {
 	}
 	project := config.Project{}
 	project.InitProject(inputFile)
-	fmt.Println(project.Posts)
+	project.CopyPostToTarget(0)
 }
