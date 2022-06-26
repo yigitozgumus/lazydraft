@@ -10,10 +10,6 @@ type InputFile struct {
 	Path string
 }
 
-type YamlHandler interface {
-	ReadYamlFile() YamlFile
-}
-
 func (yf InputFile) ReadYamlFile() YamlFile {
 	data, err := ioutil.ReadFile(yf.Path)
 	if err != nil {

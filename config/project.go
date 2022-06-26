@@ -7,10 +7,10 @@ import (
 	s "strings"
 )
 
-const OBSIDIAN_IMG_PREFIX = "![["
-const MARKDOWN_IMG_PREFIX = "![]("
-const IMG_CLOSURE = "]]"
-const IMG_PREFIX = "/img/"
+const ObsidianImgPrefix = "![["
+const MarkdownImgPrefix = "![]("
+const ImgClosure = "]]"
+const ImgPrefix = "/img/"
 
 type TargetInfo struct {
 	TargetBase       string
@@ -21,11 +21,6 @@ type TargetInfo struct {
 type Project struct {
 	Posts  PostListInfo
 	Target TargetInfo
-}
-
-type projectOperations interface {
-	InitProject(f InputFile)
-	CopyPostToTarget(postIndex int)
 }
 
 func (p *Project) InitProject(f InputFile) {
@@ -52,9 +47,9 @@ func (p Project) CopyPostToTarget(postIndex int) {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	fullPrefix := IMG_PREFIX + postToCopy.DirName + "/"
-	updatedContent := s.ReplaceAll(string(postContent), OBSIDIAN_IMG_PREFIX, MARKDOWN_IMG_PREFIX+fullPrefix)
-	updatedContent = s.ReplaceAll(updatedContent, IMG_CLOSURE, ")")
+	fullPrefix := ImgPrefix + postToCopy.DirName + "/"
+	updatedContent := s.ReplaceAll(string(postContent), ObsidianImgPrefix, MarkdownImgPrefix+fullPrefix)
+	updatedContent = s.ReplaceAll(updatedContent, ImgClosure, ")")
 	postFileName := p.Target.TargetContentDir + "/" + convertMarkdownToPostName(postToCopy.PostName)
 	ioutil.WriteFile(postFileName, []byte(updatedContent), 0666)
 }

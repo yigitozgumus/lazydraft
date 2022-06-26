@@ -2,19 +2,15 @@ package config
 
 type YamlFile struct {
 	Source struct {
-		BaseDir  string `yaml:"base_dir"`
-		PostsDir string `yaml:"posts_dir"`
+		BaseDir           string `yaml:"base_dir"`
+		DraftPostsDir     string `yaml:"draft_posts_dir"`
+		PublishedPostsDir string `yaml:"published_posts_dir"`
 	}
 	Target struct {
 		BaseDir    string `yaml:"base_dir"`
 		ContentDir string `yaml:"content_dir"`
 		AssetDir   string `yaml:"asset_dir"`
 	}
-}
-
-type converter interface {
-	ExtractPostListInfo() PostListInfo
-	ExtractTargetListInfo() TargetInfo
 }
 
 func (yf YamlFile) ExtractTargetListInfo() TargetInfo {
