@@ -1,14 +1,11 @@
+/*
+Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+
+*/
 package main
 
-import (
-	"lazy-publish/config"
-)
+import "lazy-publish/cmd"
 
 func main() {
-	inputFile := config.InputFile{
-		Path: "test-project.yaml",
-	}
-	project := config.Project{}
-	project.InitProject(inputFile)
-	project.CopyPostToTarget(0)
+	cmd.Execute()
 }
