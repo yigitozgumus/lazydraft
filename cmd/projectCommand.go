@@ -14,15 +14,19 @@ const ProjectChangeActiveSubCommand = "change-active"
 func (cp *CommandParser) runProjectCommand(commandList []string) error {
 	if len(commandList) == 0 {
 		fmt.Println("Project command usage will be written")
+		return nil
 	}
 	if commandList[0] == ProjectListSubCommand {
 		cp.runProjectListCommand()
+		return nil
 	}
 	if commandList[0] == ProjectGetActiveSubCommand {
 		cp.runProjectGetActiveCommand()
+		return nil
 	}
 	if commandList[0] == ProjectChangeActiveSubCommand {
 		cp.runProjectChangeActiveCommand()
+		return nil
 	}
 	return nil
 }
