@@ -30,9 +30,15 @@ func (cp *CommandParser) runProjectCommand(commandList []string) error {
 func (cp *CommandParser) runProjectListCommand() {
 	projectList := config.GetProjectList(cp.ProjectConfig)
 	projectNames := projectList.GetProjectNames()
+	activeProject, _ := projectList.GetActiveProject()
+	activeProjectName := activeProject.Name
 	fmt.Println("\nCurrent Project List")
 	for index, name := range projectNames {
-		fmt.Printf("  %d: %s\n", index+1, name)
+		activeOutput := ""
+		if name == activeProjectName {
+			activeOutput = "(active)"
+		}
+		fmt.Printf("  %d) %s %s\n", index+1, name, activeOutput)
 	}
 }
 
@@ -46,5 +52,8 @@ func (cp *CommandParser) runProjectGetActiveCommand() {
 }
 
 func (cp *CommandParser) runProjectChangeActiveCommand() {
-
+	cp.runProjectListCommand()
+	var input string
+	fmt.Println("Type project number")
+	fmt.Scanln(&input)
 }
