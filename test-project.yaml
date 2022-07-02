@@ -1,8 +1,20 @@
-source:
-  base_dir: '/Users/yigitozgumus/Library/Mobile Documents/iCloud~md~obsidian/Documents/SecondBrain'
-  draft_posts_dir: "writing/online/drafts"
-  published_posts_dir: "writing/online/published"
-target:
-  base_dir: "/Users/yigitozgumus/dev/admin/personalWebsite"
-  content_dir: "content/posts"
-  asset_dir: "static/img"
+test_project_1:
+  source:
+    base_dir: '/Users/yigitozgumus/Library/Mobile Documents/iCloud~md~obsidian/Documents/SecondBrain'
+    draft_posts_dir: "writing/online/drafts"
+    published_posts_dir: "writing/online/published"
+  target:
+    base_dir: "/Users/yigitozgumus/dev/admin/personalWebsite"
+    content_dir: "content/posts"
+    asset_dir: "static/img"
+  active: false
+test_project_2:
+  source:
+    base_dir: '/Users/yigitozgumus/Library/Mobile Documents/iCloud~md~obsidian/Documents/SecondBrain'
+    draft_posts_dir: "writing/online/drafts"
+    published_posts_dir: "writing/online/published"
+  target:
+    base_dir: "/Users/yigitozgumus/dev/admin/personalWebsite"
+    content_dir: "content/posts"
+    asset_dir: "static/img"
+  active: true
