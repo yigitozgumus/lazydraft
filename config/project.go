@@ -19,14 +19,10 @@ type TargetInfo struct {
 }
 
 type Project struct {
+	Name   string
+	Active bool
 	Posts  PostListInfo
 	Target TargetInfo
-}
-
-func (p *Project) InitProject(f InputFile) {
-	yamlFile := f.ReadYamlFile()
-	(*p).Posts = yamlFile.ExtractPostListInfo()
-	(*p).Target = yamlFile.ExtractTargetListInfo()
 }
 
 func (p Project) CopyPostToTarget(postIndex int) {

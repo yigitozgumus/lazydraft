@@ -11,6 +11,7 @@ type YamlFile struct {
 		ContentDir string `yaml:"content_dir"`
 		AssetDir   string `yaml:"asset_dir"`
 	}
+	Active bool `yaml:"active"`
 }
 
 func (yf YamlFile) ExtractTargetListInfo() TargetInfo {
