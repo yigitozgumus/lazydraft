@@ -6,7 +6,13 @@ type ProjectList struct {
 	projects map[string]Project
 }
 
-func (p *ProjectList) getProjectNames() []string {
+func GetProjectList(config ProjectConfig) *ProjectList {
+	projectList := ProjectList{}
+	projectList.initProject(config)
+	return &projectList
+}
+
+func (p *ProjectList) GetProjectNames() []string {
 	keys := make([]string, 0, len((*p).projects))
 	for key, _ := range (*p).projects {
 		keys = append(keys, key)
@@ -14,14 +20,13 @@ func (p *ProjectList) getProjectNames() []string {
 	return keys
 }
 
-func (p *ProjectList) getProjectDataOf(name string) Project {
+func (p *ProjectList) GetProjectDataOf(name string) Project {
 	return (*p).projects[name]
 }
 
-func (p *ProjectList) InitProject(f InputFile) {
-	yamlFile := f.ReadYamlFile()
+func (p *ProjectList) initProject(config ProjectConfig) {
 	(*p).projects = make(map[string]Project)
-	for projectName, projectData := range yamlFile {
+	for projectName, projectData := range config.Data {
 		(*p).projects[projectName] = Project{
 			Name:   projectName,
 			Posts:  projectData.ExtractPostListInfo(),
@@ -31,7 +36,7 @@ func (p *ProjectList) InitProject(f InputFile) {
 	}
 }
 
-func (p *ProjectList) getActiveProject() (Project, error) {
+func (p *ProjectList) GetActiveProject() (Project, error) {
 	projects := (*p).projects
 	for _, project := range projects {
 		if project.Active {
