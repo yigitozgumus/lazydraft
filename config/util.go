@@ -2,6 +2,6 @@ package config
 
 import s "strings"
 
-func convertMarkdownToPostName(fileName string) string {
+func ConvertMarkdownToPostName(fileName string) string {
 	return s.ReplaceAll(s.ToLower(fileName), " ", "-")
 }

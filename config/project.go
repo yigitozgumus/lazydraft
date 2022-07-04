@@ -45,7 +45,20 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 	fullPrefix := ImgPrefix + postToCopy.DirName + "/"
 	updatedContent := s.ReplaceAll(string(postContent), ObsidianImgPrefix, MarkdownImgPrefix+fullPrefix)
 	updatedContent = s.ReplaceAll(updatedContent, ImgClosure, ")")
-	postFileName := p.Target.TargetContentDir + "/" + convertMarkdownToPostName(postToCopy.PostName)
+	postFileName := p.Target.TargetContentDir + "/" + ConvertMarkdownToPostName(postToCopy.PostName)
 	ioutil.WriteFile(postFileName, []byte(updatedContent), 0666)
 	return nil
+}
+
+func (p Project) GetTargetContentDirFiles() ([]string, error) {
+	targetContent := p.Target.TargetContentDir
+	files, err := ioutil.ReadDir(targetContent)
+	if err != nil {
+		return nil, err
+	}
+	fileNames := make([]string, len(files))
+	for index, file := range files {
+		fileNames[index] = file.Name()
+	}
+	return fileNames, nil
 }

@@ -10,12 +10,14 @@ import (
 const DraftCommand = "draft"
 const DraftListSubCommand = "list"
 const DraftCopyToStageSubCommand = "stage"
+const DraftUpdateStagedDraftSubCommand = "update-stage"
 const DraftRemoveFromStageSubCommand = "unstage"
 const DraftPublishFromStageSubCommand = "publish"
 
 func (cp *CommandParser) runDraftCommand(commandList []string) error {
 	if len(commandList) == 0 {
-		fmt.Printf("Draft command usage will be written")
+		fmt.Println("Draft command usage will be written")
+		return nil
 	}
 	if commandList[0] == DraftListSubCommand {
 		err := cp.runDraftListCommand()
@@ -23,6 +25,10 @@ func (cp *CommandParser) runDraftCommand(commandList []string) error {
 	}
 	if commandList[0] == DraftCopyToStageSubCommand {
 		err := cp.runDraftCopyToStageCommand()
+		return err
+	}
+	if commandList[0] == DraftUpdateStagedDraftSubCommand {
+		err := cp.runUpdatedStagedDraftCommand()
 		return err
 	}
 	if commandList[0] == DraftRemoveFromStageSubCommand {
@@ -42,10 +48,21 @@ func (cp *CommandParser) runDraftListCommand() error {
 	if err != nil {
 		return err
 	}
+	targetFiles, err := activeProject.GetTargetContentDirFiles()
+	if err != nil {
+		return err
+	}
 	draftList := activeProject.Posts.PostList
 	fmt.Printf("\n Drafts of %s\n", activeProject.Name)
 	for index, draft := range draftList {
-		fmt.Printf("  %d) %s\n", index+1, draft.PostName)
+		stageFound := ""
+		for _, targetPost := range targetFiles {
+			if targetPost == config.ConvertMarkdownToPostName(draft.PostName) {
+				stageFound = "(staged)"
+				break
+			}
+		}
+		fmt.Printf("  %d) %s %s\n", index+1, draft.PostName, stageFound)
 	}
 	return nil
 }
@@ -77,9 +94,20 @@ func (cp *CommandParser) runDraftCopyToStageCommand() error {
 }
 
 func (cp *CommandParser) runDraftRemoveFromStageCommand() error {
+	projectList := config.GetProjectList(cp.ProjectConfig)
+	activeProject, err := projectList.GetActiveProject()
+	if err != nil {
+		return err
+	}
+	cp.runDraftListCommand()
+	activeProject.GetTargetContentDirFiles()
 	return nil
 }
 
 func (cp *CommandParser) runDraftPublishFromStageCommand() error {
+	return nil
+}
+
+func (cp *CommandParser) runUpdateStagedDraftCommand() error {
 	return nil
 }
