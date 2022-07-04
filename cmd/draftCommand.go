@@ -28,7 +28,7 @@ func (cp *CommandParser) runDraftCommand(commandList []string) error {
 		return err
 	}
 	if commandList[0] == DraftUpdateStagedDraftSubCommand {
-		err := cp.runUpdatedStagedDraftCommand()
+		err := cp.runUpdateStagedDraftCommand()
 		return err
 	}
 	if commandList[0] == DraftRemoveFromStageSubCommand {
