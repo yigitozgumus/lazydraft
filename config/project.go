@@ -50,6 +50,37 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 	return nil
 }
 
+func (p Project) RemovePostFromTarget(draft Post) error {
+	postAssetDir := p.Target.TargetAsset + "/" + draft.DirName
+	err := os.RemoveAll(postAssetDir)
+	if err != nil {
+		return err
+	}
+	postFileName := p.Target.TargetContentDir + "/" + ConvertMarkdownToPostName(draft.PostName)
+	err = os.Remove(postFileName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Project) GetStagedPosts() ([]Post, error) {
+	targetFiles, err := p.GetTargetContentDirFiles()
+	if err != nil {
+		return nil, err
+	}
+	draftList := p.Posts.PostList
+	stagedDrafts := make([]Post, 0)
+	for _, draft := range draftList {
+		for _, target := range targetFiles {
+			if target == ConvertMarkdownToPostName(draft.PostName) {
+				stagedDrafts = append(stagedDrafts, draft)
+			}
+		}
+	}
+	return stagedDrafts, nil
+}
+
 func (p Project) GetTargetContentDirFiles() ([]string, error) {
 	targetContent := p.Target.TargetContentDir
 	files, err := ioutil.ReadDir(targetContent)

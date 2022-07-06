@@ -10,7 +10,7 @@ import (
 const DraftCommand = "draft"
 const DraftListSubCommand = "list"
 const DraftCopyToStageSubCommand = "stage"
-const DraftUpdateStagedDraftSubCommand = "update-stage"
+const DraftUpdateStagedDraftSubCommand = "update"
 const DraftRemoveFromStageSubCommand = "unstage"
 const DraftPublishFromStageSubCommand = "publish"
 
@@ -32,7 +32,7 @@ func (cp *CommandParser) runDraftCommand(commandList []string) error {
 		return err
 	}
 	if commandList[0] == DraftRemoveFromStageSubCommand {
-		err := cp.runDraftRemoveFromStageCommand()
+		err := cp.runRemoveDraftFromStageCommand()
 		return err
 	}
 	if commandList[0] == DraftPublishFromStageSubCommand {
@@ -93,15 +93,42 @@ func (cp *CommandParser) runDraftCopyToStageCommand() error {
 	return nil
 }
 
-func (cp *CommandParser) runDraftRemoveFromStageCommand() error {
+func (cp *CommandParser) runRemoveDraftFromStageCommand() error {
 	projectList := config.GetProjectList(cp.ProjectConfig)
 	activeProject, err := projectList.GetActiveProject()
+	stagedDraftPosts, err := activeProject.GetStagedPosts()
+	draftIndex, err := cp.getSelectedIndexFromStagedDrafts("Type draft number to delete")
 	if err != nil {
 		return err
 	}
-	cp.runDraftListCommand()
-	activeProject.GetTargetContentDirFiles()
+	err = activeProject.RemovePostFromTarget(stagedDraftPosts[draftIndex])
+	if err != nil {
+		return err
+	}
+	fmt.Println("\nDraft is removed from stage")
 	return nil
+}
+
+func (cp *CommandParser) getSelectedIndexFromStagedDrafts(inputTestForOperation string) (int, error) {
+	projectList := config.GetProjectList(cp.ProjectConfig)
+	activeProject, err := projectList.GetActiveProject()
+	stagedDraftPosts, err := activeProject.GetStagedPosts()
+	if err != nil {
+		return -1, err
+	}
+	if len(stagedDraftPosts) == 0 {
+		return -1, errors.New("there are no staged drafts")
+	}
+	fmt.Println("Staged drafts are")
+	for index, staged := range stagedDraftPosts {
+		fmt.Printf(" %d) %s\n", index+1, staged.PostName)
+	}
+	inputInt, err := config.GetInputFromUser("\n" + inputTestForOperation)
+	if inputInt < 1 || inputInt > len(stagedDraftPosts) {
+		return -1, errors.New("invalid choice")
+	}
+	draftIndex := inputInt - 1
+	return draftIndex, nil
 }
 
 func (cp *CommandParser) runDraftPublishFromStageCommand() error {
@@ -109,5 +136,21 @@ func (cp *CommandParser) runDraftPublishFromStageCommand() error {
 }
 
 func (cp *CommandParser) runUpdateStagedDraftCommand() error {
+	projectList := config.GetProjectList(cp.ProjectConfig)
+	activeProject, err := projectList.GetActiveProject()
+	stagedDraftPosts, err := activeProject.GetStagedPosts()
+	draftIndex, err := cp.getSelectedIndexFromStagedDrafts("Type draft number to update")
+	if err != nil {
+		return err
+	}
+	err = activeProject.RemovePostFromTarget(stagedDraftPosts[draftIndex])
+	if err != nil {
+		return err
+	}
+	err = activeProject.CopyPostToTarget(draftIndex)
+	if err != nil {
+		return err
+	}
+	fmt.Println("\nDraft is updated")
 	return nil
 }
