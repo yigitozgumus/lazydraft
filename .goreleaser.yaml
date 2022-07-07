@@ -40,9 +40,9 @@ brews:
     name: lazydraft
     # Template for the url which is determined by the given Token (github or gitlab)
     # Default for github is "https://github.com/<repo_owner>/<repo_name>/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-    url_template: "https://github.com/yigitozgumus/lazy-publish/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    url_template: "https://github.com/yigitozgumus/lazydraft/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
 
-    homepage: https://github.com/yigitozgumus/lazy-publish
+    homepage: https://github.com/yigitozgumus/lazydraft
 
     # Git author used to commit to the repository.
     # Defaults are shown.
@@ -58,7 +58,7 @@ brews:
 
     # Your app's description.
     # Default is empty.
-    description: ""
+    description: "lazydraft helps you manage your markdown blog projects in your obsidian workflow. It can transfer the blog project into your static site of choice."
 
     # SPDX identifier of your app's license.
     # Default is empty.
