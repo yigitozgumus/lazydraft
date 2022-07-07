@@ -8,7 +8,7 @@ import (
 )
 
 const inputFileDoesNotExistsError = "project lazydraft file does not exist"
-const configFileName = ".config/lazydraft/lazydraft.yml"
+const configFileName = ".config/lazydraft/projects.yml"
 const userHomeDirectoryError = "user home directory cannot be retrieved"
 const configFilePathError = "lazydraft file path cannot be retrieved"
 
