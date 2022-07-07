@@ -34,7 +34,7 @@ builds:
 brews:
   - # GitHub/GitLab repository to push the formula to
     tap:
-      owner: Yigit Ozgumus
+      owner: yigitozgumus
       name: lazy-publish
 
     name: lazy-publish
