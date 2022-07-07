@@ -1,4 +1,4 @@
-package config
+package lazypublish
 
 import (
 	"io/ioutil"

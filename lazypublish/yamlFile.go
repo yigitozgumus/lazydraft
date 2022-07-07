@@ -1,4 +1,4 @@
-package config
+package lazypublish
 
 type YamlFile struct {
 	Source struct {

@@ -1,4 +1,4 @@
-package config
+package lazypublish
 
 import (
 	"errors"
@@ -7,10 +7,10 @@ import (
 	"os"
 )
 
-const inputFileDoesNotExistsError = "project config file does not exist"
+const inputFileDoesNotExistsError = "project lazypublish file does not exist"
 const configFileName = ".lazyPublish.yml"
 const userHomeDirectoryError = "user home directory cannot be retrieved"
-const configFilePathError = "config file path cannot be retrieved"
+const configFilePathError = "lazypublish file path cannot be retrieved"
 
 type InputFile struct {
 	Path string
