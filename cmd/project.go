@@ -75,6 +75,7 @@ func registerChangeActiveProjectCommand() *cli.Command {
 		Aliases: []string{"c"},
 		Usage:   "Change your active project for draft management",
 		Action: func(context *cli.Context) error {
+			fmt.Println("will be implemented")
 			return nil
 		},
 	}
