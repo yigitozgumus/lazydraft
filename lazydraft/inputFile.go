@@ -7,8 +7,11 @@ import (
 	"os"
 )
 
-const inputFileDoesNotExistsError = "project lazydraft file does not exist"
-const configFileName = ".config/lazydraft/projects.yml"
+const projectFileDoesNotExistsError = "\nprojects.yml file could not be found. See 'lazydraft help init'"
+const projectFormatInvalidError = "\nprojects.yml file format is invalid. See 'lazydraft config'"
+const ConfigFileName = ".config/lazydraft/projects.yml"
+const ConfigFileDir = "lazydraft"
+const ConfigBaseDir = ".config"
 const userHomeDirectoryError = "user home directory cannot be retrieved"
 const configFilePathError = "lazydraft file path cannot be retrieved"
 
@@ -23,14 +26,14 @@ type ProjectConfig struct {
 func (yf InputFile) readProjectConfig() (*ProjectConfig, error) {
 	data, err := ioutil.ReadFile(yf.Path)
 	if err != nil {
-		return nil, errors.New(inputFileDoesNotExistsError)
+		return nil, errors.New(projectFileDoesNotExistsError)
 	}
 	projectConfig := ProjectConfig{
 		Data: make(map[string]YamlFile),
 	}
 	err = yaml.Unmarshal(data, &projectConfig.Data)
 	if err != nil {
-		return nil, errors.New(inputFileDoesNotExistsError)
+		return nil, errors.New(projectFormatInvalidError)
 	}
 	return &projectConfig, nil
 }
@@ -53,7 +56,7 @@ func getConfigFilePath() (*InputFile, error) {
 		return nil, errors.New(userHomeDirectoryError)
 	}
 	configFile := InputFile{
-		Path: dirname + "/" + configFileName,
+		Path: dirname + "/" + ConfigFileName,
 	}
 	return &configFile, nil
 }
