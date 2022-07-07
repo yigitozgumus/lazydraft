@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/urfave/cli/v2"
-	"lazy-publish/lazypublish"
+	"lazy-publish/lazydraft"
 	"strconv"
 )
 
@@ -36,11 +36,11 @@ func registerListDraftCommand() *cli.Command {
 }
 
 func runListCommand() error {
-	pc, err := lazypublish.GetProjectConfig()
+	pc, err := lazydraft.GetProjectConfig()
 	if err != nil {
 		return err
 	}
-	projectList := lazypublish.GetProjectList(*pc)
+	projectList := lazydraft.GetProjectList(*pc)
 	activeProject, err := projectList.GetActiveProject()
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func runListCommand() error {
 	for index, draft := range draftList {
 		stageFound := ""
 		for _, targetPost := range targetFiles {
-			if targetPost == lazypublish.ConvertMarkdownToPostName(draft.PostName) {
+			if targetPost == lazydraft.ConvertMarkdownToPostName(draft.PostName) {
 				stageFound = "(staged)"
 				break
 			}
@@ -70,11 +70,11 @@ func registerCopyDraftToStageCommand() *cli.Command {
 		Aliases: []string{"s"},
 		Usage:   "adds your draft to staging area",
 		Action: func(context *cli.Context) error {
-			pc, err := lazypublish.GetProjectConfig()
+			pc, err := lazydraft.GetProjectConfig()
 			if err != nil {
 				return err
 			}
-			projectList := lazypublish.GetProjectList(*pc)
+			projectList := lazydraft.GetProjectList(*pc)
 			activeProject, err := projectList.GetActiveProject()
 			if err != nil {
 				return err
@@ -107,11 +107,11 @@ func registerUpdateStagedDraftCommand() *cli.Command {
 		Aliases: []string{"u"},
 		Usage:   "updates the version of the draft in the stage",
 		Action: func(context *cli.Context) error {
-			pc, err := lazypublish.GetProjectConfig()
+			pc, err := lazydraft.GetProjectConfig()
 			if err != nil {
 				return err
 			}
-			projectList := lazypublish.GetProjectList(*pc)
+			projectList := lazydraft.GetProjectList(*pc)
 			activeProject, err := projectList.GetActiveProject()
 			stagedDraftPosts, err := activeProject.GetStagedPosts()
 			draftIndex, err := getSelectedIndexFromStagedDrafts(*pc, "Type post number to update")
@@ -132,8 +132,8 @@ func registerUpdateStagedDraftCommand() *cli.Command {
 	}
 }
 
-func getSelectedIndexFromStagedDrafts(pc lazypublish.ProjectConfig, inputTestForOperation string) (int, error) {
-	projectList := lazypublish.GetProjectList(pc)
+func getSelectedIndexFromStagedDrafts(pc lazydraft.ProjectConfig, inputTestForOperation string) (int, error) {
+	projectList := lazydraft.GetProjectList(pc)
 	activeProject, err := projectList.GetActiveProject()
 	stagedDraftPosts, err := activeProject.GetStagedPosts()
 	if err != nil {
@@ -146,7 +146,7 @@ func getSelectedIndexFromStagedDrafts(pc lazypublish.ProjectConfig, inputTestFor
 	for index, staged := range stagedDraftPosts {
 		fmt.Printf(" %d) %s\n", index+1, staged.PostName)
 	}
-	inputInt, err := lazypublish.GetInputFromUser("\n" + inputTestForOperation)
+	inputInt, err := lazydraft.GetInputFromUser("\n" + inputTestForOperation)
 	if inputInt < 1 || inputInt > len(stagedDraftPosts) {
 		return -1, errors.New("invalid choice")
 	}
@@ -167,11 +167,11 @@ func registerRemoveDraftFromStageCommand() *cli.Command {
 		Aliases: []string{"r"},
 		Usage:   "remove the staged draft",
 		Action: func(context *cli.Context) error {
-			pc, err := lazypublish.GetProjectConfig()
+			pc, err := lazydraft.GetProjectConfig()
 			if err != nil {
 				return err
 			}
-			projectList := lazypublish.GetProjectList(*pc)
+			projectList := lazydraft.GetProjectList(*pc)
 			activeProject, err := projectList.GetActiveProject()
 			stagedDraftPosts, err := activeProject.GetStagedPosts()
 			draftIndex, err := getSelectedIndexFromStagedDrafts(*pc, "Type post number to unstage")
@@ -194,11 +194,11 @@ func registerPublishDraftCommand() *cli.Command {
 		Aliases: []string{"p"},
 		Usage:   "updates the draft to the latest version and publishes it",
 		Action: func(context *cli.Context) error {
-			pc, err := lazypublish.GetProjectConfig()
+			pc, err := lazydraft.GetProjectConfig()
 			if err != nil {
 				return err
 			}
-			projectList := lazypublish.GetProjectList(*pc)
+			projectList := lazydraft.GetProjectList(*pc)
 			activeProject, err := projectList.GetActiveProject()
 			stagedDraftPosts, err := activeProject.GetStagedPosts()
 			draftIndex, err := getSelectedIndexFromStagedDrafts(*pc, "Type post number to publish")

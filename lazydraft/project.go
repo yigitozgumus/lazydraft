@@ -1,4 +1,4 @@
-package lazypublish
+package lazydraft
 
 import (
 	"fmt"

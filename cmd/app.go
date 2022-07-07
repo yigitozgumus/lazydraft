@@ -24,7 +24,7 @@ func initAppInfo() {
 		Name:  "Yigit Ozgumus",
 		Email: "yigitozgumus1@gmail.com",
 	}
-	app.Name = "lazyPublish"
+	app.Name = "lazydraft"
 	app.Usage = "Simple application to transfer drafts to your static site"
 	app.Authors = []*cli.Author{&author}
 	app.Version = "1.0.0"
