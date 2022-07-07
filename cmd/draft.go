@@ -163,8 +163,8 @@ func getSelectedIndexFromStagedDrafts(pc lazypublish.ProjectConfig, inputTestFor
 
 func registerRemoveDraftFromStageCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "unstage",
-		Aliases: []string{"u"},
+		Name:    "remove",
+		Aliases: []string{"r"},
 		Usage:   "remove the staged draft",
 		Action: func(context *cli.Context) error {
 			pc, err := lazypublish.GetProjectConfig()
