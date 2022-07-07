@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"github.com/otiai10/copy"
 	"io/ioutil"
 	"os"
 	s "strings"
@@ -18,10 +20,11 @@ type TargetInfo struct {
 }
 
 type Project struct {
-	Name   string
-	Active bool
-	Posts  PostListInfo
-	Target TargetInfo
+	Name            string
+	IsProjectActive bool
+	Posts           PostListInfo
+	PublishedDir    string
+	Target          TargetInfo
 }
 
 func (p Project) CopyPostToTarget(postIndex int) error {
@@ -50,7 +53,7 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 	return nil
 }
 
-func (p Project) RemovePostFromTarget(draft Post) error {
+func (p *Project) RemovePostFromTarget(draft Post) error {
 	postAssetDir := p.Target.TargetAsset + "/" + draft.DirName
 	err := os.RemoveAll(postAssetDir)
 	if err != nil {
@@ -61,6 +64,40 @@ func (p Project) RemovePostFromTarget(draft Post) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (p *Project) UpdatePostToLatest(draft Post, index int) error {
+	err := p.RemovePostFromTarget(draft)
+	if err != nil {
+		return err
+	}
+	err = p.CopyPostToTarget(index)
+	if err != nil {
+		return err
+	}
+	fmt.Println("\n • Post is updated")
+	return nil
+}
+
+func (p *Project) RemovePostFromDrafts(draft Post) error {
+	draftDirPath := draft.DirPath
+	err := os.RemoveAll(draftDirPath)
+	if err != nil {
+		return err
+	}
+	fmt.Println(" • Post is removed from drafts directory")
+	return nil
+}
+
+func (p *Project) CopyDraftToPublished(draft Post) error {
+	publishedDirPath := p.PublishedDir + "/" + draft.DirName
+	draftDirPath := draft.DirPath
+	err := copy.Copy(draftDirPath, publishedDirPath)
+	if err != nil {
+		return err
+	}
+	fmt.Println(" • Post is copied to published directory")
 	return nil
 }
 

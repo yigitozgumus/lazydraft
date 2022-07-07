@@ -28,10 +28,11 @@ func (p *ProjectList) initProject(config ProjectConfig) {
 	(*p).projects = make(map[string]Project)
 	for projectName, projectData := range config.Data {
 		(*p).projects[projectName] = Project{
-			Name:   projectName,
-			Posts:  projectData.ExtractPostListInfo(),
-			Target: projectData.ExtractTargetListInfo(),
-			Active: projectData.Active,
+			Name:            projectName,
+			Posts:           projectData.ExtractPostListInfo(),
+			PublishedDir:    projectData.ExtractTargetPublishedDir(),
+			Target:          projectData.ExtractTargetListInfo(),
+			IsProjectActive: projectData.Active,
 		}
 	}
 }
@@ -39,7 +40,7 @@ func (p *ProjectList) initProject(config ProjectConfig) {
 func (p *ProjectList) GetActiveProject() (Project, error) {
 	projects := (*p).projects
 	for _, project := range projects {
-		if project.Active {
+		if project.IsProjectActive {
 			return project, nil
 		}
 	}

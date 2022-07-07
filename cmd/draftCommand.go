@@ -53,7 +53,7 @@ func (cp *CommandParser) runDraftListCommand() error {
 		return err
 	}
 	draftList := activeProject.Posts.PostList
-	fmt.Printf("\n Drafts of %s\n", activeProject.Name)
+	fmt.Printf("\n Post drafts of %s\n", activeProject.Name)
 	for index, draft := range draftList {
 		stageFound := ""
 		for _, targetPost := range targetFiles {
@@ -75,7 +75,7 @@ func (cp *CommandParser) runDraftCopyToStageCommand() error {
 	}
 	cp.runDraftListCommand()
 	var input string
-	fmt.Print("Type Draft Number: ")
+	fmt.Print("Type post number: ")
 	fmt.Scanln(&input)
 	inputInt, err := strconv.Atoi(input)
 	if err != nil {
@@ -89,7 +89,7 @@ func (cp *CommandParser) runDraftCopyToStageCommand() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Draft is added to the stage.")
+	fmt.Println("Post is added to the stage.")
 	return nil
 }
 
@@ -105,7 +105,7 @@ func (cp *CommandParser) runRemoveDraftFromStageCommand() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("\nDraft is removed from stage")
+	fmt.Println("\nPost is removed from stage")
 	return nil
 }
 
@@ -119,7 +119,7 @@ func (cp *CommandParser) getSelectedIndexFromStagedDrafts(inputTestForOperation 
 	if len(stagedDraftPosts) == 0 {
 		return -1, errors.New("there are no staged drafts")
 	}
-	fmt.Println("Staged drafts are")
+	fmt.Println("Staged posts are")
 	for index, staged := range stagedDraftPosts {
 		fmt.Printf(" %d) %s\n", index+1, staged.PostName)
 	}
@@ -127,11 +127,30 @@ func (cp *CommandParser) getSelectedIndexFromStagedDrafts(inputTestForOperation 
 	if inputInt < 1 || inputInt > len(stagedDraftPosts) {
 		return -1, errors.New("invalid choice")
 	}
-	draftIndex := inputInt - 1
+	chosenPost := stagedDraftPosts[inputInt-1]
+	draftIndex := -1
+	for index, post := range activeProject.Posts.PostList {
+		if post.PostName == chosenPost.PostName {
+			draftIndex = index
+			break
+		}
+	}
 	return draftIndex, nil
 }
 
 func (cp *CommandParser) runDraftPublishFromStageCommand() error {
+	projectList := config.GetProjectList(cp.ProjectConfig)
+	activeProject, err := projectList.GetActiveProject()
+	stagedDraftPosts, err := activeProject.GetStagedPosts()
+	draftIndex, err := cp.getSelectedIndexFromStagedDrafts("Type draft number to publish")
+	if err != nil {
+		return err
+	}
+	postToUpdate := stagedDraftPosts[draftIndex]
+	err = activeProject.UpdatePostToLatest(postToUpdate, draftIndex)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -151,6 +170,6 @@ func (cp *CommandParser) runUpdateStagedDraftCommand() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("\nDraft is updated")
+	fmt.Println("\nPost is updated")
 	return nil
 }

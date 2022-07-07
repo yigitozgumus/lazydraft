@@ -21,3 +21,7 @@ func (yf YamlFile) ExtractTargetListInfo() TargetInfo {
 	target.TargetContentDir = yf.Target.BaseDir + "/" + yf.Target.ContentDir
 	return target
 }
+
+func (yf YamlFile) ExtractTargetPublishedDir() string {
+	return yf.Source.BaseDir + "/" + yf.Source.PublishedPostsDir
+}
