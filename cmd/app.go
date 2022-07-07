@@ -19,7 +19,8 @@ func registerAppCommand() {
 	app.Action = func(context *cli.Context) error {
 		_, err := lazydraft.GetProjectConfig()
 		if err != nil {
-			return err
+			fmt.Println(err.Error())
+			return nil
 		}
 		if context.NArg() == 0 {
 			fmt.Println("\n use 'lazydraft help' to see available commands")
@@ -30,6 +31,7 @@ func registerAppCommand() {
 
 func registerCommands() {
 	app.Commands = []*cli.Command{
+		registerInitCommand(),
 		registerProjectCommand(),
 		registerDraftCommand(),
 	}
