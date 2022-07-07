@@ -97,7 +97,7 @@ func (cp *CommandParser) runRemoveDraftFromStageCommand() error {
 	projectList := config.GetProjectList(cp.ProjectConfig)
 	activeProject, err := projectList.GetActiveProject()
 	stagedDraftPosts, err := activeProject.GetStagedPosts()
-	draftIndex, err := cp.getSelectedIndexFromStagedDrafts("Type draft number to delete")
+	draftIndex, err := cp.getSelectedIndexFromStagedDrafts("Type post number to unstage")
 	if err != nil {
 		return err
 	}
@@ -142,12 +142,20 @@ func (cp *CommandParser) runDraftPublishFromStageCommand() error {
 	projectList := config.GetProjectList(cp.ProjectConfig)
 	activeProject, err := projectList.GetActiveProject()
 	stagedDraftPosts, err := activeProject.GetStagedPosts()
-	draftIndex, err := cp.getSelectedIndexFromStagedDrafts("Type draft number to publish")
+	draftIndex, err := cp.getSelectedIndexFromStagedDrafts("Type post number to publish")
 	if err != nil {
 		return err
 	}
 	postToUpdate := stagedDraftPosts[draftIndex]
 	err = activeProject.UpdatePostToLatest(postToUpdate, draftIndex)
+	if err != nil {
+		return err
+	}
+	err = activeProject.CopyDraftToPublished(postToUpdate)
+	if err != nil {
+		return err
+	}
+	err = activeProject.RemovePostFromDrafts(postToUpdate)
 	if err != nil {
 		return err
 	}
@@ -158,7 +166,7 @@ func (cp *CommandParser) runUpdateStagedDraftCommand() error {
 	projectList := config.GetProjectList(cp.ProjectConfig)
 	activeProject, err := projectList.GetActiveProject()
 	stagedDraftPosts, err := activeProject.GetStagedPosts()
-	draftIndex, err := cp.getSelectedIndexFromStagedDrafts("Type draft number to update")
+	draftIndex, err := cp.getSelectedIndexFromStagedDrafts("Type post number to update")
 	if err != nil {
 		return err
 	}
