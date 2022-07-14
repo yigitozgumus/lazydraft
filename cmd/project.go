@@ -27,6 +27,10 @@ func registerProjectListCommand() *cli.Command {
 		Usage:   "List your current projects",
 		Action: func(context *cli.Context) error {
 			settings, err := lazydraft.GetSettings()
+			if err != nil {
+				fmt.Println(err.Error())
+				return nil
+			}
 			if settings.ActiveProject == "" {
 				fmt.Println("\nNo Active project found. see 'lazydraft project config'")
 				return nil
