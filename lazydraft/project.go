@@ -20,11 +20,10 @@ type TargetInfo struct {
 }
 
 type Project struct {
-	Name            string
-	IsProjectActive bool
-	Posts           PostListInfo
-	PublishedDir    string
-	Target          TargetInfo
+	Name         string
+	Posts        PostListInfo
+	PublishedDir string
+	Target       TargetInfo
 }
 
 func (p Project) CopyPostToTarget(postIndex int) error {
