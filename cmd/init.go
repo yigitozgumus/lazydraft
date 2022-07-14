@@ -12,27 +12,41 @@ func registerInitCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "init",
 		Aliases: []string{"i"},
-		Usage:   "Create projects.yml to start tracking your projects",
+		Usage:   "Create config files to start tracking your projects",
 		Action: func(context *cli.Context) error {
-			configFile := lazydraft.ConfigFileName
+			// create config dir if needed
 			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				return err
-			}
-			configFilePath := homeDir + "/" + configFile
-			_, err = os.ReadFile(configFilePath)
-			if err == nil {
-				fmt.Println("\nprojects.yml file is present")
-				return nil
-			}
-			fmt.Println("\nCreating projects.yml ...")
 			configDir := homeDir + "/" + lazydraft.ConfigBaseDir + "/" + lazydraft.ConfigFileDir
 			_, err = os.ReadDir(configDir)
 			if err != nil {
+				fmt.Println("\nNo lazydraft config directory found. Creating...")
 				os.Mkdir(configDir, 0777)
+				fmt.Println("\nlazydraft config folder is created.")
+			} else {
+				fmt.Println("\nlazydraft config directory is present.")
 			}
-			ioutil.WriteFile(configFilePath, []byte{}, 0666)
-			fmt.Printf("\nprojects.yml is created at '%s'\n", configFilePath)
+			// create projects file
+			projectDataFile := lazydraft.ProjectDataFilePath
+			configFilePath := homeDir + "/" + projectDataFile
+			_, err = os.ReadFile(configFilePath)
+			if err != nil {
+				fmt.Println("\nCreating projects.yml...")
+				ioutil.WriteFile(configFilePath, []byte{}, 0666)
+				fmt.Printf("\nprojects.yml is created at '%s'\n", configFilePath)
+			} else {
+				fmt.Println("\nprojects.yml file is present.")
+			}
+			// create settings file
+			settingsFile := lazydraft.AppSettingsFilePath
+			settingsFilePath := homeDir + "/" + settingsFile
+			_, err = os.ReadFile(settingsFilePath)
+			if err != nil {
+				fmt.Println("\nCreating settings.yml...")
+				ioutil.WriteFile(settingsFilePath, []byte{}, 0666)
+				fmt.Printf("\nsettings.yml is created at '%s'\n", settingsFilePath)
+			} else {
+				fmt.Println("\nsettings.yml file is present.")
+			}
 			return nil
 		},
 	}

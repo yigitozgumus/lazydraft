@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/urfave/cli/v2"
 	"lazy-publish/lazydraft"
-	"log"
 )
 
 func registerProjectCommand() *cli.Command {
@@ -27,14 +26,22 @@ func registerProjectListCommand() *cli.Command {
 		Aliases: []string{"l"},
 		Usage:   "List your current projects",
 		Action: func(context *cli.Context) error {
-			pc, err := lazydraft.GetProjectConfig()
+			settings, err := lazydraft.GetSettings()
+			if err != nil {
+				fmt.Println(err.Error())
+				return nil
+			}
+			if settings.ActiveProject == "" {
+				fmt.Println("\nNo Active project found. see 'lazydraft project config'")
+				return nil
+			}
+			pc, err := lazydraft.GetProjectListData()
 			if err != nil {
 				return err
 			}
 			projectList := lazydraft.GetProjectList(*pc)
 			projectNames := projectList.GetProjectNames()
-			activeProject, _ := projectList.GetActiveProject()
-			activeProjectName := activeProject.Name
+			activeProjectName := settings.ActiveProject
 			fmt.Println("\nCurrent Project List")
 			for index, name := range projectNames {
 				activeOutput := ""
@@ -54,14 +61,20 @@ func registerGetActiveProjectCommand() *cli.Command {
 		Aliases: []string{"a"},
 		Usage:   "Get your active project for draft management",
 		Action: func(context *cli.Context) error {
-			pc, err := lazydraft.GetProjectConfig()
+			settings, err := lazydraft.GetSettings()
+			if err != nil {
+				// TODO handle all the error management gracefully.
+				return err
+			}
+			pc, err := lazydraft.GetProjectListData()
 			if err != nil {
 				return err
 			}
 			projectList := lazydraft.GetProjectList(*pc)
-			activeProject, err := projectList.GetActiveProject()
+			activeProject, err := projectList.GetActiveProject(settings)
 			if err != nil {
-				log.Fatal(err)
+				fmt.Println(err.Error())
+				return nil
 			}
 			fmt.Printf("\nCurrent active project is %s\n", activeProject.Name)
 			return nil
@@ -71,11 +84,33 @@ func registerGetActiveProjectCommand() *cli.Command {
 
 func registerChangeActiveProjectCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "change",
+		Name:    "config",
 		Aliases: []string{"c"},
 		Usage:   "Change your active project for draft management",
 		Action: func(context *cli.Context) error {
-			fmt.Println("will be implemented")
+			settings, err := lazydraft.GetSettings()
+			if err != nil {
+				fmt.Println(err.Error())
+				return nil
+			}
+			pc, err := lazydraft.GetProjectListData()
+			if err != nil {
+				return err
+			}
+			projectList := lazydraft.GetProjectList(*pc)
+			projectNames := projectList.GetProjectNames()
+			fmt.Println("\nCurrent Project List")
+			for index, name := range projectNames {
+				fmt.Printf("  %d) %s\n", index+1, name)
+			}
+			projectOrder, err := lazydraft.GetInputFromUser("\n Select project to make it active")
+			if projectOrder < 1 || projectOrder > len(projectNames) {
+				fmt.Println("\nInvalid post selection")
+				return nil
+			}
+			projectIndex := projectOrder - 1
+			settings.ActiveProject = projectNames[projectIndex]
+			lazydraft.UpdateSettings(settings)
 			return nil
 		},
 	}
