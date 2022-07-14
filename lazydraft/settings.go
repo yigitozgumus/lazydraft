@@ -48,3 +48,19 @@ func (yf InputFile) readSettings() (*AppSettings, error) {
 	}
 	return &settings, nil
 }
+
+func UpdateSettings(newSettings *AppSettings) error {
+	settingsPath, err := getSettingsPath()
+	if err != nil {
+		return err
+	}
+	data, err := yaml.Marshal(&newSettings)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(settingsPath.Path, data, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
