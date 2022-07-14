@@ -30,7 +30,7 @@ func registerInitCommand() *cli.Command {
 			configFilePath := homeDir + "/" + projectDataFile
 			_, err = os.ReadFile(configFilePath)
 			if err != nil {
-				fmt.Println("\nCreating projects.yml ...")
+				fmt.Println("\nCreating projects.yml...")
 				ioutil.WriteFile(configFilePath, []byte{}, 0666)
 				fmt.Printf("\nprojects.yml is created at '%s'\n", configFilePath)
 			} else {
@@ -41,9 +41,9 @@ func registerInitCommand() *cli.Command {
 			settingsFilePath := homeDir + "/" + settingsFile
 			_, err = os.ReadFile(settingsFilePath)
 			if err != nil {
-				fmt.Println("\nCreating settings.yml ...")
+				fmt.Println("\nCreating settings.yml...")
 				ioutil.WriteFile(settingsFilePath, []byte{}, 0666)
-				fmt.Printf("\nsettings.yml is createt at '%s'\n", settingsFilePath)
+				fmt.Printf("\nsettings.yml is created at '%s'\n", settingsFilePath)
 			} else {
 				fmt.Println("\nsettings.yml file is present.")
 			}
