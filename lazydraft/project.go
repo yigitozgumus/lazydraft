@@ -28,11 +28,7 @@ type Project struct {
 
 func (p Project) CopyPostToTarget(postIndex int) error {
 	postToCopy := p.Posts.PostList[postIndex]
-	postAssetDir := p.Target.AssetDir + "/" + postToCopy.BaseDir
-	err := os.Mkdir(postAssetDir, 0777)
-	if err != nil {
-		return err
-	}
+	postAssetDir := p.Target.AssetDir
 	for index, asset := range postToCopy.AssetNameList {
 		fileToCopy, err := ioutil.ReadFile(postToCopy.GetAssetPathList()[index])
 		if err != nil {
@@ -44,22 +40,23 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 	if err != nil {
 		return err
 	}
-	fullPrefix := ImgPrefix + postToCopy.BaseDir + "/"
-	updatedContent := s.ReplaceAll(string(postContent), ObsidianImgPrefix, MarkdownImgPrefix+fullPrefix)
-	updatedContent = s.ReplaceAll(updatedContent, ImgClosure, ")")
+	updatedContent := s.ReplaceAll(string(postContent), "assets", "/img")
 	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(postToCopy.PostName)
 	ioutil.WriteFile(postFileName, []byte(updatedContent), 0666)
 	return nil
 }
 
 func (p *Project) RemovePostFromTarget(draft Post) error {
-	postAssetDir := p.Target.AssetDir + "/" + draft.BaseDir
-	err := os.RemoveAll(postAssetDir)
-	if err != nil {
-		return err
+	postAssetDir := p.Target.AssetDir
+	for _, asset := range draft.AssetNameList {
+		err := os.Remove(postAssetDir + "/" + asset)
+		if err != nil {
+			return err
+		}
 	}
+
 	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(draft.PostName)
-	err = os.Remove(postFileName)
+	err := os.Remove(postFileName)
 	if err != nil {
 		return err
 	}
