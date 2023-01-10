@@ -28,7 +28,7 @@ type Project struct {
 
 func (p Project) CopyPostToTarget(postIndex int) error {
 	postToCopy := p.Posts.PostList[postIndex]
-	postAssetDir := p.Target.AssetDir + "/" + postToCopy.DirName
+	postAssetDir := p.Target.AssetDir + "/" + postToCopy.BaseDir
 	err := os.Mkdir(postAssetDir, 0777)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 	if err != nil {
 		return err
 	}
-	fullPrefix := ImgPrefix + postToCopy.DirName + "/"
+	fullPrefix := ImgPrefix + postToCopy.BaseDir + "/"
 	updatedContent := s.ReplaceAll(string(postContent), ObsidianImgPrefix, MarkdownImgPrefix+fullPrefix)
 	updatedContent = s.ReplaceAll(updatedContent, ImgClosure, ")")
 	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(postToCopy.PostName)
@@ -53,7 +53,7 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 }
 
 func (p *Project) RemovePostFromTarget(draft Post) error {
-	postAssetDir := p.Target.AssetDir + "/" + draft.DirName
+	postAssetDir := p.Target.AssetDir + "/" + draft.BaseDir
 	err := os.RemoveAll(postAssetDir)
 	if err != nil {
 		return err
@@ -80,7 +80,7 @@ func (p *Project) UpdatePostToLatest(draft Post, index int) error {
 }
 
 func (p *Project) RemovePostFromDrafts(draft Post) error {
-	draftDirPath := draft.DirPath
+	draftDirPath := draft.BaseDir
 	err := os.RemoveAll(draftDirPath)
 	if err != nil {
 		return err
@@ -90,8 +90,8 @@ func (p *Project) RemovePostFromDrafts(draft Post) error {
 }
 
 func (p *Project) CopyDraftToPublished(draft Post) error {
-	publishedDirPath := p.PublishedDir + "/" + draft.DirName
-	draftDirPath := draft.DirPath
+	publishedDirPath := p.PublishedDir + "/" + draft.BaseDir
+	draftDirPath := draft.BaseDir
 	err := copy.Copy(draftDirPath, publishedDirPath)
 	if err != nil {
 		return err
