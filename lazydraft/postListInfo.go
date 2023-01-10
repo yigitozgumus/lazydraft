@@ -33,7 +33,7 @@ type PostListInfo struct {
 func (yf YamlFile) ExtractPostListInfo() PostListInfo {
 	postList := PostListInfo{}
 	postList.Base = yf.Source.BaseDir
-	draftPostsDir := yf.Source.BaseDir + "/" + yf.Source.DraftPostsDir
+	draftPostsDir := yf.Source.BaseDir + "/" + yf.Source.DraftDir
 	posts, err := ioutil.ReadDir(draftPostsDir)
 	if err != nil {
 		log.Fatalf("error: %v", err)

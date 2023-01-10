@@ -14,9 +14,9 @@ const ImgClosure = "]]"
 const ImgPrefix = "/img/"
 
 type TargetInfo struct {
-	TargetBase       string
-	TargetContentDir string
-	TargetAsset      string
+	Base       string
+	ContentDir string
+	AssetDir   string
 }
 
 type Project struct {
@@ -28,7 +28,7 @@ type Project struct {
 
 func (p Project) CopyPostToTarget(postIndex int) error {
 	postToCopy := p.Posts.PostList[postIndex]
-	postAssetDir := p.Target.TargetAsset + "/" + postToCopy.DirName
+	postAssetDir := p.Target.AssetDir + "/" + postToCopy.DirName
 	err := os.Mkdir(postAssetDir, 0777)
 	if err != nil {
 		return err
@@ -47,18 +47,18 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 	fullPrefix := ImgPrefix + postToCopy.DirName + "/"
 	updatedContent := s.ReplaceAll(string(postContent), ObsidianImgPrefix, MarkdownImgPrefix+fullPrefix)
 	updatedContent = s.ReplaceAll(updatedContent, ImgClosure, ")")
-	postFileName := p.Target.TargetContentDir + "/" + ConvertMarkdownToPostName(postToCopy.PostName)
+	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(postToCopy.PostName)
 	ioutil.WriteFile(postFileName, []byte(updatedContent), 0666)
 	return nil
 }
 
 func (p *Project) RemovePostFromTarget(draft Post) error {
-	postAssetDir := p.Target.TargetAsset + "/" + draft.DirName
+	postAssetDir := p.Target.AssetDir + "/" + draft.DirName
 	err := os.RemoveAll(postAssetDir)
 	if err != nil {
 		return err
 	}
-	postFileName := p.Target.TargetContentDir + "/" + ConvertMarkdownToPostName(draft.PostName)
+	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(draft.PostName)
 	err = os.Remove(postFileName)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (p *Project) GetStagedPosts() ([]Post, error) {
 }
 
 func (p Project) GetTargetContentDirFiles() ([]string, error) {
-	targetContent := p.Target.TargetContentDir
+	targetContent := p.Target.ContentDir
 	files, err := ioutil.ReadDir(targetContent)
 	if err != nil {
 		return nil, err

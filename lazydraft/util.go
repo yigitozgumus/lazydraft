@@ -28,10 +28,10 @@ func CreateFileInUserHomeDir(filePath string, fileName string) {
 	filePath = homeDir + "/" + filePath
 	_, err = os.ReadFile(filePath)
 	if err != nil {
-		fmt.Printf("\nCreating '%s'...", fileName)
+		fmt.Printf("\nCreating '%s'...\n", fileName)
 		ioutil.WriteFile(filePath, []byte{}, 0666)
-		fmt.Printf("\n'%s' is created at '%s'\n", fileName, filePath)
+		fmt.Printf(" - '%s' is created at '%s'\n", fileName, filePath)
 	} else {
-		fmt.Printf("\n'%s' file is present.", fileName)
+		fmt.Printf(" - '%s' file is present.\n", fileName)
 	}
 }

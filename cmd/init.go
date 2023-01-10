@@ -47,7 +47,7 @@ func registerResetCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println("\nConfig folder is removed")
+			fmt.Println("\nConfig folder is removed.")
 			return nil
 		},
 	}
