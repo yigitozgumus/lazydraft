@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"github.com/urfave/cli/v2"
-	"io/ioutil"
 	"lazy-publish/lazydraft"
 	"os"
 )
@@ -26,27 +25,29 @@ func registerInitCommand() *cli.Command {
 				fmt.Println("\nlazydraft config directory is present.")
 			}
 			// create projects file
-			projectDataFile := lazydraft.ProjectDataFilePath
-			configFilePath := homeDir + "/" + projectDataFile
-			_, err = os.ReadFile(configFilePath)
-			if err != nil {
-				fmt.Println("\nCreating projects.yml...")
-				ioutil.WriteFile(configFilePath, []byte{}, 0666)
-				fmt.Printf("\nprojects.yml is created at '%s'\n", configFilePath)
-			} else {
-				fmt.Println("\nprojects.yml file is present.")
-			}
+			lazydraft.CreateFileInUserHomeDir(lazydraft.ProjectDataFilePath, "projects.yml")
 			// create settings file
-			settingsFile := lazydraft.AppSettingsFilePath
-			settingsFilePath := homeDir + "/" + settingsFile
-			_, err = os.ReadFile(settingsFilePath)
+			lazydraft.CreateFileInUserHomeDir(lazydraft.AppSettingsFilePath, "settings.yml")
+			return nil
+		},
+	}
+}
+
+func registerResetCommand() *cli.Command {
+
+	return &cli.Command{
+		Name:    "reset",
+		Aliases: []string{"r"},
+		Usage:   "Delete config folder to start over",
+		Action: func(context *cli.Context) error {
+			// create config dir if needed
+			homeDir, err := os.UserHomeDir()
+			configDir := homeDir + "/" + lazydraft.ConfigBaseDir + "/" + lazydraft.ConfigFileDir
+			err = os.RemoveAll(configDir)
 			if err != nil {
-				fmt.Println("\nCreating settings.yml...")
-				ioutil.WriteFile(settingsFilePath, []byte{}, 0666)
-				fmt.Printf("\nsettings.yml is created at '%s'\n", settingsFilePath)
-			} else {
-				fmt.Println("\nsettings.yml file is present.")
+				return err
 			}
+			fmt.Println("\nConfig folder is removed")
 			return nil
 		},
 	}
