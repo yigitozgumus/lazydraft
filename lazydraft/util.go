@@ -30,8 +30,8 @@ func CreateFileInUserHomeDir(filePath string, fileName string) {
 	if err != nil {
 		fmt.Printf("\nCreating '%s'...\n", fileName)
 		ioutil.WriteFile(filePath, []byte{}, 0666)
-		fmt.Printf(" - '%s' is created at '%s'\n", fileName, filePath)
+		fmt.Printf(" • '%s' is created at '%s'\n", fileName, filePath)
 	} else {
-		fmt.Printf(" - '%s' file is present.\n", fileName)
+		fmt.Printf(" • '%s' file is present.\n", fileName)
 	}
 }
