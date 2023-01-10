@@ -26,6 +26,18 @@ type ProjectPathList struct {
 	Data map[string]YamlFile
 }
 
+func GetProjectListData() (*ProjectPathList, error) {
+	projectListPath, err := getProjectPathDataPath()
+	if err != nil {
+		return nil, errors.New(projectDataFilePathError)
+	}
+	projectConfig, err := projectListPath.readProjectPathList()
+	if err != nil {
+		return nil, err
+	}
+	return projectConfig, nil
+}
+
 func (yf InputFile) readProjectPathList() (*ProjectPathList, error) {
 	data, err := ioutil.ReadFile(yf.Path)
 	if err != nil {
@@ -39,18 +51,6 @@ func (yf InputFile) readProjectPathList() (*ProjectPathList, error) {
 		return nil, errors.New(projectFormatInvalidError)
 	}
 	return &projectConfig, nil
-}
-
-func GetProjectListData() (*ProjectPathList, error) {
-	projectListPath, err := getProjectPathDataPath()
-	if err != nil {
-		return nil, errors.New(projectDataFilePathError)
-	}
-	projectConfig, err := projectListPath.readProjectPathList()
-	if err != nil {
-		return nil, err
-	}
-	return projectConfig, nil
 }
 
 func getProjectPathDataPath() (*InputFile, error) {
