@@ -48,5 +48,5 @@ func initAppInfo() {
 	app.Name = "lazydraft"
 	app.Usage = "Simple application to transfer drafts to your static site"
 	app.Authors = []*cli.Author{&author}
-	app.Version = "1.0.8"
+	app.Version = "2.0.0"
 }
