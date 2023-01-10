@@ -8,11 +8,6 @@ import (
 	s "strings"
 )
 
-const ObsidianImgPrefix = "![["
-const MarkdownImgPrefix = "![]("
-const ImgClosure = "]]"
-const ImgPrefix = "/img/"
-
 type TargetInfo struct {
 	Base       string
 	ContentDir string
@@ -77,8 +72,7 @@ func (p *Project) UpdatePostToLatest(draft Post, index int) error {
 }
 
 func (p *Project) RemovePostFromDrafts(draft Post) error {
-	draftDirPath := draft.BaseDir
-	err := os.RemoveAll(draftDirPath)
+	err := os.Remove(draft.GetPostAbsolutePath())
 	if err != nil {
 		return err
 	}
@@ -87,8 +81,8 @@ func (p *Project) RemovePostFromDrafts(draft Post) error {
 }
 
 func (p *Project) CopyDraftToPublished(draft Post) error {
-	publishedDirPath := p.PublishedDir + "/" + draft.BaseDir
-	draftDirPath := draft.BaseDir
+	publishedDirPath := p.PublishedDir + "/" + draft.PostName
+	draftDirPath := draft.GetPostAbsolutePath()
 	err := copy.Copy(draftDirPath, publishedDirPath)
 	if err != nil {
 		return err
