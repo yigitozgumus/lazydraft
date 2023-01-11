@@ -126,7 +126,10 @@ func registerUpdateStagedDraftCommand() *cli.Command {
 				return err
 			}
 			activeProject, err := projectList.GetActiveProject(settings)
-			stagedDraftPosts, err := activeProject.GetStagedPosts()
+			if err != nil {
+				return err
+			}
+			stagedDraftPosts := activeProject.Posts.PostList
 			draftIndex, err := getSelectedIndexFromStagedDrafts(*pc, "Type post number to update")
 			if err != nil {
 				return err
@@ -167,6 +170,9 @@ func getSelectedIndexFromStagedDrafts(pc lazydraft.ProjectPathList, inputTestFor
 		fmt.Printf(" %d) %s\n", index+1, staged.PostName)
 	}
 	inputInt, err := lazydraft.GetInputFromUser("\n" + inputTestForOperation)
+	if err != nil {
+		return -1, err
+	}
 	if inputInt < 1 || inputInt > len(stagedDraftPosts) {
 		return -1, errors.New("invalid choice")
 	}
