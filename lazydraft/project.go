@@ -2,16 +2,18 @@ package lazydraft
 
 import (
 	"fmt"
-	"github.com/otiai10/copy"
 	"io/ioutil"
 	"os"
 	s "strings"
+
+	"github.com/otiai10/copy"
 )
 
 type TargetInfo struct {
-	Base       string
-	ContentDir string
-	AssetDir   string
+	Base        string
+	ContentDir  string
+	AssetDir    string
+	AssetPrefix string
 }
 
 type Project struct {
@@ -35,7 +37,8 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 	if err != nil {
 		return err
 	}
-	updatedContent := s.ReplaceAll(string(postContent), "assets", "/img")
+	targetAssetPrefix := "/" + p.Target.AssetPrefix
+	updatedContent := s.ReplaceAll(string(postContent), "assets", targetAssetPrefix)
 	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(postToCopy.PostName)
 	ioutil.WriteFile(postFileName, []byte(updatedContent), 0666)
 	return nil

@@ -8,9 +8,10 @@ type YamlFile struct {
 		AssetsDir    string `yaml:"assets_dir"`
 	}
 	Target struct {
-		BaseDir    string `yaml:"base_dir"`
-		ContentDir string `yaml:"content_dir"`
-		AssetDir   string `yaml:"assets_dir"`
+		BaseDir     string `yaml:"base_dir"`
+		ContentDir  string `yaml:"content_dir"`
+		AssetDir    string `yaml:"assets_dir"`
+		AssetPrefix string `yaml:"asset_prefix"`
 	}
 }
 
@@ -19,6 +20,7 @@ func (yf YamlFile) ExtractTargetListInfo() TargetInfo {
 	target.Base = yf.Target.BaseDir
 	target.AssetDir = yf.Target.BaseDir + "/" + yf.Target.AssetDir
 	target.ContentDir = yf.Target.BaseDir + "/" + yf.Target.ContentDir
+	target.AssetPrefix = yf.Target.AssetPrefix
 	return target
 }
 
