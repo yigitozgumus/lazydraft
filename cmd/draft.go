@@ -3,9 +3,10 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/urfave/cli/v2"
 	"lazy-publish/lazydraft"
 	"strconv"
+
+	"github.com/urfave/cli/v2"
 )
 
 func registerDraftCommand() *cli.Command {
@@ -151,6 +152,9 @@ func getSelectedIndexFromStagedDrafts(pc lazydraft.ProjectPathList, inputTestFor
 		return -1, err
 	}
 	activeProject, err := projectList.GetActiveProject(settings)
+	if err != nil {
+		return -1, err
+	}
 	stagedDraftPosts, err := activeProject.GetStagedPosts()
 	if err != nil {
 		return -1, err
@@ -169,6 +173,7 @@ func getSelectedIndexFromStagedDrafts(pc lazydraft.ProjectPathList, inputTestFor
 	chosenPost := stagedDraftPosts[inputInt-1]
 	draftIndex := -1
 	for index, post := range activeProject.Posts.PostList {
+		fmt.Printf("%s %s\n", post.PostName, chosenPost.PostName)
 		if post.PostName == chosenPost.PostName {
 			draftIndex = index
 			break
@@ -193,7 +198,7 @@ func registerRemoveDraftFromStageCommand() *cli.Command {
 				return err
 			}
 			activeProject, err := projectList.GetActiveProject(settings)
-			stagedDraftPosts, err := activeProject.GetStagedPosts()
+			stagedDraftPosts := activeProject.Posts.PostList
 			draftIndex, err := getSelectedIndexFromStagedDrafts(*pc, "Type post number to unstage")
 			if err != nil {
 				return err
