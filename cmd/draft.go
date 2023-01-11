@@ -173,7 +173,6 @@ func getSelectedIndexFromStagedDrafts(pc lazydraft.ProjectPathList, inputTestFor
 	chosenPost := stagedDraftPosts[inputInt-1]
 	draftIndex := -1
 	for index, post := range activeProject.Posts.PostList {
-		fmt.Printf("%s %s\n", post.PostName, chosenPost.PostName)
 		if post.PostName == chosenPost.PostName {
 			draftIndex = index
 			break
