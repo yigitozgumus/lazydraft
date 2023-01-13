@@ -34,9 +34,7 @@ func registerProjectListCommand() *cli.Command {
 				fmt.Println("\nNo Active project found. see 'lazydraft project config'")
 				return nil
 			}
-			pc, err := lazydraft.GetProjectListData()
-			util.HandleError(err)
-			projectList := lazydraft.GetProjectList(*pc)
+			projectList := lazydraft.InitProjectList()
 			projectNames := projectList.GetProjectNames()
 			activeProjectName := settings.ActiveProject
 			fmt.Println("\nCurrent Project List")
@@ -60,9 +58,7 @@ func registerGetActiveProjectCommand() *cli.Command {
 		Action: func(context *cli.Context) error {
 			settings, err := lazydraft.GetSettings()
 			util.HandleError(err)
-			pc, err := lazydraft.GetProjectListData()
-			util.HandleError(err)
-			projectList := lazydraft.GetProjectList(*pc)
+			projectList := lazydraft.InitProjectList()
 			activeProject, err := projectList.GetActiveProject(settings)
 			util.HandleError(err)
 			fmt.Printf("\nCurrent active project is %s\n", activeProject.Name)
@@ -79,9 +75,7 @@ func registerChangeActiveProjectCommand() *cli.Command {
 		Action: func(context *cli.Context) error {
 			settings, err := lazydraft.GetSettings()
 			util.HandleError(err)
-			pc, err := lazydraft.GetProjectListData()
-			util.HandleError(err)
-			projectList := lazydraft.GetProjectList(*pc)
+			projectList := lazydraft.InitProjectList()
 			projectNames := projectList.GetProjectNames()
 			fmt.Println("\nCurrent Project List")
 			for index, name := range projectNames {

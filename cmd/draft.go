@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"lazy-publish/lazydraft"
 	"lazy-publish/util"
-	"strconv"
 
 	"github.com/urfave/cli/v2"
 )
@@ -32,34 +31,28 @@ func registerDraftListCommand() *cli.Command {
 		Aliases: []string{"l"},
 		Usage:   "lists all your drafts",
 		Action: func(context *cli.Context) error {
-			return runListCommand()
+			projectList := lazydraft.InitProjectList()
+			settings, err := lazydraft.GetSettings()
+			util.HandleError(err)
+			activeProject, err := projectList.GetActiveProject(settings)
+			util.HandleError(err)
+			targetFiles, err := activeProject.GetTargetContentDirFiles()
+			util.HandleError(err)
+			draftList := activeProject.Posts.PostList
+			fmt.Printf("\n Post drafts of %s\n", activeProject.Name)
+			for index, draft := range draftList {
+				stageFound := ""
+				for _, targetPost := range targetFiles {
+					if targetPost == util.ConvertMarkdownToPostName(draft.PostName) {
+						stageFound = "(staged)"
+						break
+					}
+				}
+				fmt.Printf("  %d) %s %s\n", index+1, draft.PostName, stageFound)
+			}
+			return nil
 		},
 	}
-}
-
-func runListCommand() error {
-	pc, err := lazydraft.GetProjectListData()
-	util.HandleError(err)
-	projectList := lazydraft.GetProjectList(*pc)
-	settings, err := lazydraft.GetSettings()
-	util.HandleError(err)
-	activeProject, err := projectList.GetActiveProject(settings)
-	util.HandleError(err)
-	targetFiles, err := activeProject.GetTargetContentDirFiles()
-	util.HandleError(err)
-	draftList := activeProject.Posts.PostList
-	fmt.Printf("\n Post drafts of %s\n", activeProject.Name)
-	for index, draft := range draftList {
-		stageFound := ""
-		for _, targetPost := range targetFiles {
-			if targetPost == util.ConvertMarkdownToPostName(draft.PostName) {
-				stageFound = "(staged)"
-				break
-			}
-		}
-		fmt.Printf("  %d) %s %s\n", index+1, draft.PostName, stageFound)
-	}
-	return nil
 }
 
 func registerDraftStageCommand() *cli.Command {
@@ -68,26 +61,18 @@ func registerDraftStageCommand() *cli.Command {
 		Aliases: []string{"s"},
 		Usage:   "adds your draft to staging area",
 		Action: func(context *cli.Context) error {
-			pc, err := lazydraft.GetProjectListData()
-			util.HandleError(err)
-			projectList := lazydraft.GetProjectList(*pc)
+			projectList := lazydraft.InitProjectList()
 			settings, err := lazydraft.GetSettings()
 			util.HandleError(err)
 			activeProject, err := projectList.GetActiveProject(settings)
 			util.HandleError(err)
-			runListCommand()
-			var input string
-			fmt.Print("Type post number: ")
-			fmt.Scanln(&input)
-			inputInt, err := strconv.Atoi(input)
+			postNames := lazydraft.GetPostNameList(activeProject.GetNotStagedPosts())
+			_, selectedPost, err := util.GetSelectionFromPostList(postNames)
+			absolutePosition := activeProject.GetAbsolutePostIndex(selectedPost)
 			util.HandleError(err)
-			if inputInt < 1 || inputInt > len(activeProject.Posts.PostList) {
-				return errors.New("invalid choice")
-			}
-			draftIndex := inputInt - 1
-			err = activeProject.CopyPostToTarget(draftIndex)
+			err = activeProject.CopyPostToTargetByAbsolutePosition(absolutePosition)
 			util.HandleError(err)
-			fmt.Println("Post is added to the stage.")
+			fmt.Println("Selected post is added to the stage.")
 			return nil
 		},
 	}
@@ -99,19 +84,20 @@ func registerDraftUpdateCommand() *cli.Command {
 		Aliases: []string{"u"},
 		Usage:   "updates the version of the draft in the stage",
 		Action: func(context *cli.Context) error {
-			pc, err := lazydraft.GetProjectListData()
-			util.HandleError(err)
-			projectList := lazydraft.GetProjectList(*pc)
+			projectList := lazydraft.InitProjectList()
 			settings, err := lazydraft.GetSettings()
 			util.HandleError(err)
 			activeProject, err := projectList.GetActiveProject(settings)
 			util.HandleError(err)
-			stagedDraftPosts := activeProject.Posts.PostList
-			draftIndex, err := getSelectedIndexFromStagedDrafts(*pc, "Type post number to update")
+			stagedPosts := activeProject.GetStagedPosts()
+			postNames := lazydraft.GetPostNameList(stagedPosts)
+			position, selectedPost, err := util.GetSelectionFromPostList(postNames)
+			absolutePosition := activeProject.GetAbsolutePostIndex(selectedPost)
 			util.HandleError(err)
-			err = activeProject.RemovePostFromTarget(stagedDraftPosts[draftIndex])
+			postToRemove := stagedPosts[position]
+			err = activeProject.RemovePostFromTarget(postToRemove)
 			util.HandleError(err)
-			err = activeProject.CopyPostToTarget(draftIndex)
+			err = activeProject.CopyPostToTargetByAbsolutePosition(absolutePosition)
 			util.HandleError(err)
 			fmt.Println("\nPost is updated")
 			return nil
@@ -119,8 +105,8 @@ func registerDraftUpdateCommand() *cli.Command {
 	}
 }
 
-func getSelectedIndexFromStagedDrafts(pc lazydraft.ProjectPathList, inputTestForOperation string) (int, error) {
-	projectList := lazydraft.GetProjectList(pc)
+func getSelectedIndexFromStagedDrafts(inputTestForOperation string) (int, error) {
+	projectList := lazydraft.InitProjectList()
 	settings, err := lazydraft.GetSettings()
 	if err != nil {
 		return -1, err
@@ -129,10 +115,7 @@ func getSelectedIndexFromStagedDrafts(pc lazydraft.ProjectPathList, inputTestFor
 	if err != nil {
 		return -1, err
 	}
-	stagedDraftPosts, err := activeProject.GetStagedPosts()
-	if err != nil {
-		return -1, err
-	}
+	stagedDraftPosts := activeProject.GetStagedPosts()
 	if len(stagedDraftPosts) == 0 {
 		return -1, errors.New("there are no staged drafts")
 	}
@@ -164,15 +147,13 @@ func registerDraftRemoveCommand() *cli.Command {
 		Aliases: []string{"r"},
 		Usage:   "remove the staged draft",
 		Action: func(context *cli.Context) error {
-			pc, err := lazydraft.GetProjectListData()
-			util.HandleError(err)
-			projectList := lazydraft.GetProjectList(*pc)
+			projectList := lazydraft.InitProjectList()
 			settings, err := lazydraft.GetSettings()
 			util.HandleError(err)
 			activeProject, err := projectList.GetActiveProject(settings)
 			util.HandleError(err)
 			stagedDraftPosts := activeProject.Posts.PostList
-			draftIndex, err := getSelectedIndexFromStagedDrafts(*pc, "Type post number to unstage")
+			draftIndex, err := getSelectedIndexFromStagedDrafts("Type post number to unstage")
 			util.HandleError(err)
 			err = activeProject.RemovePostFromTarget(stagedDraftPosts[draftIndex])
 			util.HandleError(err)
@@ -188,16 +169,13 @@ func registerDraftPublishCommand() *cli.Command {
 		Aliases: []string{"p"},
 		Usage:   "updates the draft to the latest version and publishes it",
 		Action: func(context *cli.Context) error {
-			pc, err := lazydraft.GetProjectListData()
-			util.HandleError(err)
-			projectList := lazydraft.GetProjectList(*pc)
+			projectList := lazydraft.InitProjectList()
 			settings, err := lazydraft.GetSettings()
 			util.HandleError(err)
 			activeProject, err := projectList.GetActiveProject(settings)
 			util.HandleError(err)
-			stagedDraftPosts, err := activeProject.GetStagedPosts()
-			util.HandleError(err)
-			draftIndex, err := getSelectedIndexFromStagedDrafts(*pc, "Type post number to publish")
+			stagedDraftPosts := activeProject.GetStagedPosts()
+			draftIndex, err := getSelectedIndexFromStagedDrafts("Type post number to publish")
 			util.HandleError(err)
 			postToUpdate := stagedDraftPosts[draftIndex]
 			err = activeProject.UpdatePostToLatest(postToUpdate, draftIndex)

@@ -27,7 +27,7 @@ type ProjectPathList struct {
 	Data map[string]YamlFile
 }
 
-func GetProjectListData() (*ProjectPathList, error) {
+func getProjectListData() (*ProjectPathList, error) {
 	projectListPath, err := getProjectPathDataPath()
 	if err != nil {
 		return nil, errors.New(projectDataFilePathError)
