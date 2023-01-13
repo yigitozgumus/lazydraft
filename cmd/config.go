@@ -2,10 +2,25 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/urfave/cli/v2"
 	"lazy-publish/lazydraft"
+	"lazy-publish/util"
 	"os"
+
+	"github.com/urfave/cli/v2"
 )
+
+func registerConfigCommand() *cli.Command {
+	command := cli.Command{
+		Name:    "config",
+		Aliases: []string{"c"},
+		Usage:   "Configure CLI settings",
+		Subcommands: []*cli.Command{
+			registerInitCommand(),
+			registerResetCommand(),
+		},
+	}
+	return &command
+}
 
 func registerInitCommand() *cli.Command {
 	return &cli.Command{
@@ -15,6 +30,7 @@ func registerInitCommand() *cli.Command {
 		Action: func(context *cli.Context) error {
 			// create config dir if needed
 			homeDir, err := os.UserHomeDir()
+			util.CheckErrorAndReturn(err)
 			configDir := homeDir + "/" + lazydraft.ConfigBaseDir + "/" + lazydraft.ConfigFileDir
 			_, err = os.ReadDir(configDir)
 			if err != nil {
@@ -25,9 +41,9 @@ func registerInitCommand() *cli.Command {
 				fmt.Println("\nlazydraft config directory is present.")
 			}
 			// create projects file
-			lazydraft.CreateFileInUserHomeDir(lazydraft.ProjectDataFilePath, "projects.yml")
+			util.CreateFileInUserHomeDir(lazydraft.ProjectDataFilePath, "projects.yml")
 			// create settings file
-			lazydraft.CreateFileInUserHomeDir(lazydraft.AppSettingsFilePath, "settings.yml")
+			util.CreateFileInUserHomeDir(lazydraft.AppSettingsFilePath, "settings.yml")
 			return nil
 		},
 	}
@@ -42,6 +58,7 @@ func registerResetCommand() *cli.Command {
 		Action: func(context *cli.Context) error {
 			// create config dir if needed
 			homeDir, err := os.UserHomeDir()
+			util.CheckErrorAndReturn(err)
 			configDir := homeDir + "/" + lazydraft.ConfigBaseDir + "/" + lazydraft.ConfigFileDir
 			err = os.RemoveAll(configDir)
 			if err != nil {

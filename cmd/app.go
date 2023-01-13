@@ -33,8 +33,7 @@ func registerAppCommand() {
 
 func registerCommands() {
 	app.Commands = []*cli.Command{
-		registerInitCommand(),
-		registerResetCommand(),
+		registerConfigCommand(),
 		registerProjectCommand(),
 		registerDraftCommand(),
 	}
