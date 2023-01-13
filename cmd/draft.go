@@ -67,7 +67,7 @@ func registerDraftStageCommand() *cli.Command {
 			activeProject, err := projectList.GetActiveProject(settings)
 			util.HandleError(err)
 			postNames := lazydraft.GetPostNameList(activeProject.GetNotStagedPosts())
-			_, selectedPost, err := util.GetSelectionFromPostList(postNames)
+			_, selectedPost, err := util.GetSelectionFromList(postNames, "Select a post to stage: ")
 			absolutePosition := activeProject.GetAbsolutePostIndex(selectedPost)
 			util.HandleError(err)
 			err = activeProject.CopyPostToTargetByAbsolutePosition(absolutePosition)
@@ -91,7 +91,7 @@ func registerDraftUpdateCommand() *cli.Command {
 			util.HandleError(err)
 			stagedPosts := activeProject.GetStagedPosts()
 			postNames := lazydraft.GetPostNameList(stagedPosts)
-			position, selectedPost, err := util.GetSelectionFromPostList(postNames)
+			position, selectedPost, err := util.GetSelectionFromList(postNames, "Select staged post to update: ")
 			absolutePosition := activeProject.GetAbsolutePostIndex(selectedPost)
 			util.HandleError(err)
 			postToRemove := stagedPosts[position]

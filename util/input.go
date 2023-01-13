@@ -18,9 +18,9 @@ func GetInputFromUser(inputText string) (int, error) {
 	return inputInt, nil
 }
 
-func GetSelectionFromPostList(inputList []string) (int, string, error) {
+func GetSelectionFromList(inputList []string, promptString string) (int, string, error) {
 	prompt := promptui.Select{
-		Label: "Choose",
+		Label: promptString,
 		Items: inputList,
 	}
 

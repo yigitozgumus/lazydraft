@@ -34,8 +34,7 @@ func registerProjectListCommand() *cli.Command {
 				fmt.Println("\nNo Active project found. see 'lazydraft project config'")
 				return nil
 			}
-			projectList := lazydraft.InitProjectList()
-			projectNames := projectList.GetProjectNames()
+			projectNames := lazydraft.InitProjectList().GetProjectNames()
 			activeProjectName := settings.ActiveProject
 			fmt.Println("\nCurrent Project List")
 			for index, name := range projectNames {
@@ -58,8 +57,7 @@ func registerGetActiveProjectCommand() *cli.Command {
 		Action: func(context *cli.Context) error {
 			settings, err := lazydraft.GetSettings()
 			util.HandleError(err)
-			projectList := lazydraft.InitProjectList()
-			activeProject, err := projectList.GetActiveProject(settings)
+			activeProject, err := lazydraft.InitProjectList().GetActiveProject(settings)
 			util.HandleError(err)
 			fmt.Printf("\nCurrent active project is %s\n", activeProject.Name)
 			return nil
@@ -75,20 +73,11 @@ func registerChangeActiveProjectCommand() *cli.Command {
 		Action: func(context *cli.Context) error {
 			settings, err := lazydraft.GetSettings()
 			util.HandleError(err)
-			projectList := lazydraft.InitProjectList()
-			projectNames := projectList.GetProjectNames()
-			fmt.Println("\nCurrent Project List")
-			for index, name := range projectNames {
-				fmt.Printf("  %d) %s\n", index+1, name)
-			}
-			projectOrder, err := util.GetInputFromUser("\n Select project to make it active")
+			projectNames := lazydraft.InitProjectList().GetProjectNames()
+			index, project, err := util.GetSelectionFromList(projectNames, "Select project: ")
 			util.HandleError(err)
-			if projectOrder < 1 || projectOrder > len(projectNames) {
-				fmt.Println("\nInvalid post selection")
-				return nil
-			}
-			projectIndex := projectOrder - 1
-			settings.ActiveProject = projectNames[projectIndex]
+			settings.ActiveProject = projectNames[index]
+			fmt.Printf("The active project is %s", project)
 			lazydraft.UpdateSettings(settings)
 			return nil
 		},
