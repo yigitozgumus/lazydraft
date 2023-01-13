@@ -16,17 +16,17 @@ func registerDraftCommand() *cli.Command {
 		Aliases: []string{"d"},
 		Usage:   "Manage your drafts in your project",
 		Subcommands: []*cli.Command{
-			registerListDraftCommand(),
-			registerCopyDraftToStageCommand(),
-			registerUpdateStagedDraftCommand(),
-			registerRemoveDraftFromStageCommand(),
-			registerPublishDraftCommand(),
+			registerDraftListCommand(),
+			registerDraftStageCommand(),
+			registerDraftUpdateCommand(),
+			registerDraftRemoveCommand(),
+			registerDraftPublishCommand(),
 		},
 	}
 	return &command
 }
 
-func registerListDraftCommand() *cli.Command {
+func registerDraftListCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "list",
 		Aliases: []string{"l"},
@@ -52,7 +52,7 @@ func runListCommand() error {
 	for index, draft := range draftList {
 		stageFound := ""
 		for _, targetPost := range targetFiles {
-			if targetPost == lazydraft.ConvertMarkdownToPostName(draft.PostName) {
+			if targetPost == util.ConvertMarkdownToPostName(draft.PostName) {
 				stageFound = "(staged)"
 				break
 			}
@@ -62,7 +62,7 @@ func runListCommand() error {
 	return nil
 }
 
-func registerCopyDraftToStageCommand() *cli.Command {
+func registerDraftStageCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "stage",
 		Aliases: []string{"s"},
@@ -103,7 +103,7 @@ func registerCopyDraftToStageCommand() *cli.Command {
 	}
 }
 
-func registerUpdateStagedDraftCommand() *cli.Command {
+func registerDraftUpdateCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "update",
 		Aliases: []string{"u"},
@@ -162,7 +162,7 @@ func getSelectedIndexFromStagedDrafts(pc lazydraft.ProjectPathList, inputTestFor
 	for index, staged := range stagedDraftPosts {
 		fmt.Printf(" %d) %s\n", index+1, staged.PostName)
 	}
-	inputInt, err := lazydraft.GetInputFromUser("\n" + inputTestForOperation)
+	inputInt, err := util.GetInputFromUser("\n" + inputTestForOperation)
 	if err != nil {
 		return -1, err
 	}
@@ -180,7 +180,7 @@ func getSelectedIndexFromStagedDrafts(pc lazydraft.ProjectPathList, inputTestFor
 	return draftIndex, nil
 }
 
-func registerRemoveDraftFromStageCommand() *cli.Command {
+func registerDraftRemoveCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "remove",
 		Aliases: []string{"r"},
@@ -211,7 +211,7 @@ func registerRemoveDraftFromStageCommand() *cli.Command {
 	}
 }
 
-func registerPublishDraftCommand() *cli.Command {
+func registerDraftPublishCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "publish",
 		Aliases: []string{"p"},

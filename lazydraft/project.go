@@ -3,6 +3,7 @@ package lazydraft
 import (
 	"fmt"
 	"io/ioutil"
+	"lazy-publish/util"
 	"os"
 	s "strings"
 
@@ -39,7 +40,7 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 	}
 	targetAssetPrefix := "/" + p.Target.AssetPrefix
 	updatedContent := s.ReplaceAll(string(postContent), "assets", targetAssetPrefix)
-	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(postToCopy.PostName)
+	postFileName := p.Target.ContentDir + "/" + util.ConvertMarkdownToPostName(postToCopy.PostName)
 	ioutil.WriteFile(postFileName, []byte(updatedContent), 0666)
 	return nil
 }
@@ -53,7 +54,7 @@ func (p *Project) RemovePostFromTarget(draft Post) error {
 		}
 	}
 
-	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(draft.PostName)
+	postFileName := p.Target.ContentDir + "/" + util.ConvertMarkdownToPostName(draft.PostName)
 	err := os.Remove(postFileName)
 	if err != nil {
 		return err
@@ -103,7 +104,7 @@ func (p *Project) GetStagedPosts() ([]Post, error) {
 	stagedDrafts := make([]Post, 0)
 	for _, draft := range draftList {
 		for _, target := range targetFiles {
-			if target == ConvertMarkdownToPostName(draft.PostName) {
+			if target == util.ConvertMarkdownToPostName(draft.PostName) {
 				stagedDrafts = append(stagedDrafts, draft)
 			}
 		}

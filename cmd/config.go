@@ -15,14 +15,14 @@ func registerConfigCommand() *cli.Command {
 		Aliases: []string{"c"},
 		Usage:   "Configure CLI settings",
 		Subcommands: []*cli.Command{
-			registerInitCommand(),
-			registerResetCommand(),
+			registerConfigInitCommand(),
+			registerConfigResetCommand(),
 		},
 	}
 	return &command
 }
 
-func registerInitCommand() *cli.Command {
+func registerConfigInitCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "init",
 		Aliases: []string{"i"},
@@ -49,7 +49,7 @@ func registerInitCommand() *cli.Command {
 	}
 }
 
-func registerResetCommand() *cli.Command {
+func registerConfigResetCommand() *cli.Command {
 
 	return &cli.Command{
 		Name:    "reset",

@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/urfave/cli/v2"
 	"lazy-publish/lazydraft"
+	"lazy-publish/util"
+
+	"github.com/urfave/cli/v2"
 )
 
 func registerProjectCommand() *cli.Command {
@@ -103,7 +105,7 @@ func registerChangeActiveProjectCommand() *cli.Command {
 			for index, name := range projectNames {
 				fmt.Printf("  %d) %s\n", index+1, name)
 			}
-			projectOrder, err := lazydraft.GetInputFromUser("\n Select project to make it active")
+			projectOrder, err := util.GetInputFromUser("\n Select project to make it active")
 			if projectOrder < 1 || projectOrder > len(projectNames) {
 				fmt.Println("\nInvalid post selection")
 				return nil
