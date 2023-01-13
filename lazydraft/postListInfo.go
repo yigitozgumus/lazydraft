@@ -6,28 +6,17 @@ import (
 	s "strings"
 )
 
-type Post struct {
-	BaseDir       string
-	AssetDir      string
-	PostName      string
-	AssetNameList []string
-}
-
-func (p Post) GetAssetPathList() []string {
-	pathList := make([]string, len(p.AssetNameList))
-	for index, asset := range p.AssetNameList {
-		pathList[index] = p.AssetDir + "/" + asset
-	}
-	return pathList
-}
-
-func (p Post) GetPostAbsolutePath() string {
-	return p.BaseDir + "/" + p.PostName
-}
-
 type PostListInfo struct {
 	Base     string
 	PostList []Post
+}
+
+func (pli PostListInfo) GetPostNameList() []string {
+	postNames := make([]string, len(pli.PostList))
+	for index, post := range pli.PostList {
+		postNames[index] = post.PostName
+	}
+	return postNames
 }
 
 func (yf YamlFile) ExtractPostListInfo() PostListInfo {
