@@ -30,4 +30,6 @@ func initAppInfo() {
 	app.Usage = "Simple application to transfer drafts to your static site"
 	app.Authors = []*cli.Author{&author}
 	app.Version = "2.0.1"
+	app.EnableBashCompletion = true
+	app.Suggest = true
 }
