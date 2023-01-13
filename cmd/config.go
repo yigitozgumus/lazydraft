@@ -30,7 +30,7 @@ func registerConfigInitCommand() *cli.Command {
 		Action: func(context *cli.Context) error {
 			// create config dir if needed
 			homeDir, err := os.UserHomeDir()
-			util.CheckErrorAndReturn(err)
+			util.HandleError(err)
 			configDir := homeDir + "/" + lazydraft.ConfigBaseDir + "/" + lazydraft.ConfigFileDir
 			_, err = os.ReadDir(configDir)
 			if err != nil {
@@ -58,7 +58,7 @@ func registerConfigResetCommand() *cli.Command {
 		Action: func(context *cli.Context) error {
 			// create config dir if needed
 			homeDir, err := os.UserHomeDir()
-			util.CheckErrorAndReturn(err)
+			util.HandleError(err)
 			configDir := homeDir + "/" + lazydraft.ConfigBaseDir + "/" + lazydraft.ConfigFileDir
 			err = os.RemoveAll(configDir)
 			if err != nil {

@@ -1,14 +1,11 @@
 package util
 
 import (
-	"fmt"
-	"os"
+	"log"
 )
 
-func CheckErrorAndReturn(err error) {
+func HandleError(err error) {
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		log.Fatal(err)
 	}
-
 }

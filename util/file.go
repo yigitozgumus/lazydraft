@@ -8,7 +8,7 @@ import (
 
 func CreateFileInUserHomeDir(filePath string, fileName string) {
 	homeDir, err := os.UserHomeDir()
-	CheckErrorAndReturn(err)
+	HandleError(err)
 	filePath = homeDir + "/" + filePath
 	_, err = os.ReadFile(filePath)
 	if err != nil {
