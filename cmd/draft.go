@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"lazy-publish/lazydraft"
+	"lazy-publish/util"
 	"strconv"
 
 	"github.com/urfave/cli/v2"
@@ -38,22 +39,14 @@ func registerListDraftCommand() *cli.Command {
 
 func runListCommand() error {
 	pc, err := lazydraft.GetProjectListData()
-	if err != nil {
-		return err
-	}
+	util.CheckErrorAndReturn(err)
 	projectList := lazydraft.GetProjectList(*pc)
 	settings, err := lazydraft.GetSettings()
-	if err != nil {
-		return err
-	}
+	util.CheckErrorAndReturn(err)
 	activeProject, err := projectList.GetActiveProject(settings)
-	if err != nil {
-		return err
-	}
+	util.CheckErrorAndReturn(err)
 	targetFiles, err := activeProject.GetTargetContentDirFiles()
-	if err != nil {
-		return err
-	}
+	util.CheckErrorAndReturn(err)
 	draftList := activeProject.Posts.PostList
 	fmt.Printf("\n Post drafts of %s\n", activeProject.Name)
 	for index, draft := range draftList {
