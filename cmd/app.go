@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"lazy-publish/lazydraft"
-
 	"github.com/urfave/cli/v2"
 )
 
@@ -12,23 +9,8 @@ var app = cli.NewApp()
 // InitApplication Inits the application
 func InitApplication() cli.App {
 	initAppInfo()
-	registerAppCommand()
 	registerCommands()
 	return *app
-}
-
-func registerAppCommand() {
-	app.Action = func(context *cli.Context) error {
-		_, err := lazydraft.GetProjectListData()
-		if err != nil {
-			fmt.Println(err.Error())
-			return nil
-		}
-		if context.NArg() == 0 {
-			fmt.Println("\n use 'lazydraft help' to see available commands")
-		}
-		return nil
-	}
 }
 
 func registerCommands() {
