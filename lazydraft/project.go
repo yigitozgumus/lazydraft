@@ -3,6 +3,7 @@ package lazydraft
 import (
 	"fmt"
 	"io/ioutil"
+	"lazy-publish/util"
 	"os"
 	s "strings"
 
@@ -28,18 +29,14 @@ func (p Project) CopyPostToTarget(postIndex int) error {
 	postAssetDir := p.Target.AssetDir
 	for index, asset := range postToCopy.AssetNameList {
 		fileToCopy, err := ioutil.ReadFile(postToCopy.GetAssetPathList()[index])
-		if err != nil {
-			return nil
-		}
+		util.HandleError(err)
 		ioutil.WriteFile(postAssetDir+"/"+asset, fileToCopy, 0666)
 	}
 	postContent, err := ioutil.ReadFile(postToCopy.GetPostAbsolutePath())
-	if err != nil {
-		return err
-	}
+	util.HandleError(err)
 	targetAssetPrefix := "/" + p.Target.AssetPrefix
 	updatedContent := s.ReplaceAll(string(postContent), "assets", targetAssetPrefix)
-	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(postToCopy.PostName)
+	postFileName := p.Target.ContentDir + "/" + util.ConvertMarkdownToPostName(postToCopy.PostName)
 	ioutil.WriteFile(postFileName, []byte(updatedContent), 0666)
 	return nil
 }
@@ -48,37 +45,27 @@ func (p *Project) RemovePostFromTarget(draft Post) error {
 	postAssetDir := p.Target.AssetDir
 	for _, asset := range draft.AssetNameList {
 		err := os.Remove(postAssetDir + "/" + asset)
-		if err != nil {
-			return err
-		}
+		util.HandleError(err)
 	}
 
-	postFileName := p.Target.ContentDir + "/" + ConvertMarkdownToPostName(draft.PostName)
+	postFileName := p.Target.ContentDir + "/" + util.ConvertMarkdownToPostName(draft.PostName)
 	err := os.Remove(postFileName)
-	if err != nil {
-		return err
-	}
+	util.HandleError(err)
 	return nil
 }
 
 func (p *Project) UpdatePostToLatest(draft Post, index int) error {
 	err := p.RemovePostFromTarget(draft)
-	if err != nil {
-		return err
-	}
+	util.HandleError(err)
 	err = p.CopyPostToTarget(index)
-	if err != nil {
-		return err
-	}
+	util.HandleError(err)
 	fmt.Println("\n • Post is updated")
 	return nil
 }
 
 func (p *Project) RemovePostFromDrafts(draft Post) error {
 	err := os.Remove(draft.GetPostAbsolutePath())
-	if err != nil {
-		return err
-	}
+	util.HandleError(err)
 	fmt.Println(" • Post is removed from drafts directory")
 	return nil
 }
@@ -87,23 +74,19 @@ func (p *Project) CopyDraftToPublished(draft Post) error {
 	publishedDirPath := p.PublishedDir + "/" + draft.PostName
 	draftDirPath := draft.GetPostAbsolutePath()
 	err := copy.Copy(draftDirPath, publishedDirPath)
-	if err != nil {
-		return err
-	}
+	util.HandleError(err)
 	fmt.Println(" • Post is copied to published directory")
 	return nil
 }
 
 func (p *Project) GetStagedPosts() ([]Post, error) {
 	targetFiles, err := p.GetTargetContentDirFiles()
-	if err != nil {
-		return nil, err
-	}
+	util.HandleError(err)
 	draftList := p.Posts.PostList
 	stagedDrafts := make([]Post, 0)
 	for _, draft := range draftList {
 		for _, target := range targetFiles {
-			if target == ConvertMarkdownToPostName(draft.PostName) {
+			if target == util.ConvertMarkdownToPostName(draft.PostName) {
 				stagedDrafts = append(stagedDrafts, draft)
 			}
 		}
@@ -114,9 +97,7 @@ func (p *Project) GetStagedPosts() ([]Post, error) {
 func (p Project) GetTargetContentDirFiles() ([]string, error) {
 	targetContent := p.Target.ContentDir
 	files, err := ioutil.ReadDir(targetContent)
-	if err != nil {
-		return nil, err
-	}
+	util.HandleError(err)
 	fileNames := make([]string, len(files))
 	for index, file := range files {
 		fileNames[index] = file.Name()

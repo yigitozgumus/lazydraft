@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/urfave/cli/v2"
 	"lazy-publish/lazydraft"
+	"lazy-publish/util"
+
+	"github.com/urfave/cli/v2"
 )
 
 func registerProjectCommand() *cli.Command {
@@ -27,18 +29,13 @@ func registerProjectListCommand() *cli.Command {
 		Usage:   "List your current projects",
 		Action: func(context *cli.Context) error {
 			settings, err := lazydraft.GetSettings()
-			if err != nil {
-				fmt.Println(err.Error())
-				return nil
-			}
+			util.HandleError(err)
 			if settings.ActiveProject == "" {
 				fmt.Println("\nNo Active project found. see 'lazydraft project config'")
 				return nil
 			}
 			pc, err := lazydraft.GetProjectListData()
-			if err != nil {
-				return err
-			}
+			util.HandleError(err)
 			projectList := lazydraft.GetProjectList(*pc)
 			projectNames := projectList.GetProjectNames()
 			activeProjectName := settings.ActiveProject
@@ -62,20 +59,12 @@ func registerGetActiveProjectCommand() *cli.Command {
 		Usage:   "Get your active project for draft management",
 		Action: func(context *cli.Context) error {
 			settings, err := lazydraft.GetSettings()
-			if err != nil {
-				// TODO handle all the error management gracefully.
-				return err
-			}
+			util.HandleError(err)
 			pc, err := lazydraft.GetProjectListData()
-			if err != nil {
-				return err
-			}
+			util.HandleError(err)
 			projectList := lazydraft.GetProjectList(*pc)
 			activeProject, err := projectList.GetActiveProject(settings)
-			if err != nil {
-				fmt.Println(err.Error())
-				return nil
-			}
+			util.HandleError(err)
 			fmt.Printf("\nCurrent active project is %s\n", activeProject.Name)
 			return nil
 		},
@@ -89,21 +78,17 @@ func registerChangeActiveProjectCommand() *cli.Command {
 		Usage:   "Change your active project for draft management",
 		Action: func(context *cli.Context) error {
 			settings, err := lazydraft.GetSettings()
-			if err != nil {
-				fmt.Println(err.Error())
-				return nil
-			}
+			util.HandleError(err)
 			pc, err := lazydraft.GetProjectListData()
-			if err != nil {
-				return err
-			}
+			util.HandleError(err)
 			projectList := lazydraft.GetProjectList(*pc)
 			projectNames := projectList.GetProjectNames()
 			fmt.Println("\nCurrent Project List")
 			for index, name := range projectNames {
 				fmt.Printf("  %d) %s\n", index+1, name)
 			}
-			projectOrder, err := lazydraft.GetInputFromUser("\n Select project to make it active")
+			projectOrder, err := util.GetInputFromUser("\n Select project to make it active")
+			util.HandleError(err)
 			if projectOrder < 1 || projectOrder > len(projectNames) {
 				fmt.Println("\nInvalid post selection")
 				return nil

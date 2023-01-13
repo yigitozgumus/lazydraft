@@ -2,9 +2,10 @@ package lazydraft
 
 import (
 	"errors"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 const projectFileDoesNotExistsError = "\nprojects.yml file could not be found. See 'lazydraft help init'"
