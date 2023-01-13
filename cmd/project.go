@@ -64,14 +64,9 @@ func registerGetActiveProjectCommand() *cli.Command {
 		Usage:   "Get your active project for draft management",
 		Action: func(context *cli.Context) error {
 			settings, err := lazydraft.GetSettings()
-			if err != nil {
-				// TODO handle all the error management gracefully.
-				return err
-			}
+			util.CheckErrorAndReturn(err)
 			pc, err := lazydraft.GetProjectListData()
-			if err != nil {
-				return err
-			}
+			util.CheckErrorAndReturn(err)
 			projectList := lazydraft.GetProjectList(*pc)
 			activeProject, err := projectList.GetActiveProject(settings)
 			if err != nil {
@@ -106,6 +101,7 @@ func registerChangeActiveProjectCommand() *cli.Command {
 				fmt.Printf("  %d) %s\n", index+1, name)
 			}
 			projectOrder, err := util.GetInputFromUser("\n Select project to make it active")
+			util.CheckErrorAndReturn(err)
 			if projectOrder < 1 || projectOrder > len(projectNames) {
 				fmt.Println("\nInvalid post selection")
 				return nil

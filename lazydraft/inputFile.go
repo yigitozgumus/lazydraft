@@ -7,6 +7,7 @@ import (
 	"os"
 )
 
+
 const projectFileDoesNotExistsError = "\nprojects.yml file could not be found. See 'lazydraft help init'"
 const settingsFileDoesNotExistsError = "\nsettings.yml file could not be found. See 'lazydraft help init'"
 const projectFormatInvalidError = "\nprojects.yml file format is invalid. See 'lazydraft config'"

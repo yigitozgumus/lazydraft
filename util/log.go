@@ -1,8 +1,14 @@
 package util
 
-func CheckErrorAndReturn(err error) error {
+import (
+	"fmt"
+	"os"
+)
+
+func CheckErrorAndReturn(err error) {
 	if err != nil {
-		return err
+		fmt.Println(err.Error())
+		os.Exit(1)
 	}
-	return nil
+
 }
