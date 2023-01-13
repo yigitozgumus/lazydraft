@@ -24,7 +24,17 @@ type Project struct {
 	Target       TargetInfo
 }
 
-func (p Project) CopyPostToTarget(postIndex int) error {
+func (p *Project) GetAbsolutePostIndex(postName string) int {
+	postList := p.Posts.PostList
+	for index, post := range postList {
+		if post.PostName == postName {
+			return index
+		}
+	}
+	return -1
+}
+
+func (p Project) CopyPostToTargetByAbsolutePosition(postIndex int) error {
 	postToCopy := p.Posts.PostList[postIndex]
 	postAssetDir := p.Target.AssetDir
 	for index, asset := range postToCopy.AssetNameList {
@@ -57,7 +67,7 @@ func (p *Project) RemovePostFromTarget(draft Post) error {
 func (p *Project) UpdatePostToLatest(draft Post, index int) error {
 	err := p.RemovePostFromTarget(draft)
 	util.HandleError(err)
-	err = p.CopyPostToTarget(index)
+	err = p.CopyPostToTargetByAbsolutePosition(index)
 	util.HandleError(err)
 	fmt.Println("\n • Post is updated")
 	return nil
@@ -79,7 +89,7 @@ func (p *Project) CopyDraftToPublished(draft Post) error {
 	return nil
 }
 
-func (p *Project) GetStagedPosts() ([]Post, error) {
+func (p *Project) filterDraftsByCondition(comparator func(first string, second string) bool) []Post {
 	targetFiles, err := p.GetTargetContentDirFiles()
 	util.HandleError(err)
 	draftList := p.Posts.PostList
@@ -91,7 +101,42 @@ func (p *Project) GetStagedPosts() ([]Post, error) {
 			}
 		}
 	}
-	return stagedDrafts, nil
+	return stagedDrafts
+}
+
+func (p *Project) GetStagedPosts() []Post {
+	targetFiles, err := p.GetTargetContentDirFiles()
+	util.HandleError(err)
+	draftList := p.Posts.PostList
+	stagedDrafts := make([]Post, 0)
+	for _, draft := range draftList {
+		for _, target := range targetFiles {
+			if target == util.ConvertMarkdownToPostName(draft.PostName) {
+				stagedDrafts = append(stagedDrafts, draft)
+			}
+		}
+	}
+	return stagedDrafts
+}
+
+func (p *Project) GetNotStagedPosts() []Post {
+	targetFiles, err := p.GetTargetContentDirFiles()
+	util.HandleError(err)
+	draftList := p.Posts.PostList
+	stagedDrafts := make([]Post, 0)
+	for _, draft := range draftList {
+		flag := true
+		for _, target := range targetFiles {
+			if target == util.ConvertMarkdownToPostName(draft.PostName) {
+				flag = false
+				break
+			}
+		}
+		if flag {
+			stagedDrafts = append(stagedDrafts, draft)
+		}
+	}
+	return stagedDrafts
 }
 
 func (p Project) GetTargetContentDirFiles() ([]string, error) {

@@ -1,14 +1,19 @@
 package lazydraft
 
-import "errors"
+import (
+	"errors"
+	"lazy-publish/util"
+)
 
 type ProjectList struct {
 	projects map[string]Project
 }
 
-func GetProjectList(config ProjectPathList) *ProjectList {
+func InitProjectList() *ProjectList {
+	config, err := getProjectListData()
+	util.HandleError(err)
 	projectList := ProjectList{}
-	projectList.initProject(config)
+	projectList.init(*config)
 	return &projectList
 }
 
@@ -24,7 +29,7 @@ func (p *ProjectList) GetProjectDataOf(name string) Project {
 	return (*p).projects[name]
 }
 
-func (p *ProjectList) initProject(config ProjectPathList) {
+func (p *ProjectList) init(config ProjectPathList) {
 	(*p).projects = make(map[string]Project)
 	for projectName, projectData := range config.Data {
 		(*p).projects[projectName] = Project{
