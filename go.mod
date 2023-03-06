@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/otiai10/copy v1.9.0
-	github.com/urfave/cli/v2 v2.23.7
+	github.com/urfave/cli/v2 v2.25.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
