@@ -3,7 +3,7 @@ module lazy-publish
 go 1.19
 
 require (
-	github.com/otiai10/copy v1.9.0
+	github.com/otiai10/copy v1.10.0
 	github.com/urfave/cli/v2 v2.23.7
 	gopkg.in/yaml.v3 v3.0.1
 )
