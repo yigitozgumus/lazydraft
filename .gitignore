@@ -15,3 +15,8 @@ dist/
 # vendor/
 .idea
 .vscode
+
+
+# Added by cargo
+
+/target
