@@ -15,6 +15,7 @@ dist/
 # vendor/
 .idea
 .vscode
+**/.DS_Store
 
 
 # Added by cargo
