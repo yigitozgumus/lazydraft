@@ -1,5 +1,5 @@
 use std::{
-    env,
+    env, fmt,
     fs::{self, File},
     io::{BufReader, Write},
 };
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 type ConfigResult<T> = Result<T, String>;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct ConfigStruct {
     source_dir: String,
     source_asset_dir: String,
@@ -18,21 +18,29 @@ struct ConfigStruct {
     yaml_asset_prefix: String,
 }
 
+impl fmt::Display for ConfigStruct {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "\nConfigStruct {{")?;
+        writeln!(f, "    source_dir: {}", self.source_dir)?;
+        writeln!(f, "    source_asset_dir: {}", self.source_asset_dir)?;
+        writeln!(f, "    target_dir: {}", self.target_dir)?;
+        writeln!(f, "    target_asset_dir: {}", self.target_asset_dir)?;
+        writeln!(f, "    target_asset_prefix: {}", self.target_asset_prefix)?;
+        writeln!(f, "    yaml_asset_prefix: {}", self.yaml_asset_prefix)?;
+        write!(f, "}}")
+    }
+}
+
 fn main() {
     match validate_config() {
-        Ok(_) => {
-            println!("Config is loaded");
+        Ok(config) => {
+            println!("Config is loaded: {}", config);
         }
         Err(e) => {
             eprintln!("Error: {}", e);
             std::process::exit(1);
         }
     }
-    // parse arguments if we have any
-    // check if we have a config file
-    // if there is no file, exit and print config command
-    // if there is a config file, check its validity
-    // if not valid, exit and print config command
 }
 
 fn validate_config() -> ConfigResult<ConfigStruct> {
