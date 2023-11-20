@@ -127,13 +127,9 @@ fn validate_config() -> ConfigResult<Config> {
                 file.write_all(serialized_empty_config.as_bytes())
                     .map_err(|e| format!("Failed to initialize the config: {}", e))?;
 
-                let reader = BufReader::new(file);
-                let config: Config = serde_json::from_reader(reader)
-                    .map_err(|e| format!("Failed to deserialize JSON: {}", e))?;
-
                 println!("Config file is created successfully at {}", config_path);
 
-                Ok(config)
+                Ok(empty_config)
             }
             Err(e) => Err(format!("Failed to create config file: {}", e)),
         }
