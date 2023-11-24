@@ -1,12 +1,11 @@
 use command::{parse_command, Command};
 use config::{validate_config, Config};
-use std::{
-    env,
-    fs::{self},
-};
+use std::env;
+use writing::{create_writing_list, print_writing_list};
 
 mod command;
 mod config;
+mod writing;
 
 fn main() {
     match validate_config() {
@@ -49,17 +48,9 @@ fn exit_with_message(message: &str) {
 }
 
 fn execute_list_command(config: &Config) -> std::io::Result<()> {
-    let entries = fs::read_dir(&config.source_dir)?;
-    for entry in entries {
-        let entry = entry?;
-        let path = entry.path();
-        let file_name = path
-            .file_name()
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "Invalid file name"))?;
-        let file_name_str = file_name.to_str().ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::Other, "Invalid UTF-8 in file name")
-        })?;
-        println!("{}", file_name_str);
+    match create_writing_list(config) {
+        Ok(writings) => print_writing_list(writings),
+        Err(_) => exit_with_message("Couldn't print the writing list"),
     }
     Ok(())
 }
