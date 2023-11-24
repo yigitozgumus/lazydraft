@@ -2,13 +2,14 @@ use std::fs;
 
 use crate::config::Config;
 use chrono::NaiveDate;
+use dialoguer::Select;
 use itertools::Itertools;
 use walkdir::WalkDir;
 
 #[derive(Debug)]
 pub struct Writing {
     path: String,
-    title: String,
+    pub title: String,
     is_draft: bool,
     publish_date: Option<NaiveDate>,
 }
@@ -36,6 +37,36 @@ pub fn print_writing_list(writings: Vec<Writing>) {
             "Published"
         };
         println!("{} - ({}) {} ", index + 1, draft, writing.title);
+    }
+}
+
+pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writing> {
+    let draft_writings: Vec<&Writing> = writings
+        .iter()
+        .filter(|&writing| writing.is_draft)
+        .collect();
+
+    if draft_writings.is_empty() {
+        println!("No draft writings available");
+        return None;
+    }
+
+    let items: Vec<String> = draft_writings
+        .iter()
+        .map(|writing| writing.title.clone())
+        .collect();
+
+    let selection = match Select::new()
+        .with_prompt("Select a draft writing")
+        .items(&items)
+        .interact()
+    {
+        Ok(index) => Some(index),
+        Err(_) => None,
+    };
+    match selection {
+        Some(index) => Some(draft_writings[index]),
+        None => None,
     }
 }
 

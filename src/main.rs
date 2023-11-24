@@ -1,7 +1,7 @@
 use command::{parse_command, Command};
 use config::{validate_config, Config};
 use std::env;
-use writing::{create_writing_list, print_writing_list};
+use writing::{create_writing_list, print_writing_list, select_draft_writing_from_list};
 
 mod command;
 mod config;
@@ -18,11 +18,11 @@ fn main() {
                     let argument = &args[1];
                     match parse_command(argument) {
                         Some(command) => match command {
-                            Command::List => {
-                                execute_list_command(&config).unwrap();
+                            Command::Status => {
+                                execute_status_command(&config).unwrap();
                             }
                             Command::Stage => {
-                                execute_stage_command();
+                                execute_stage_command(&config);
                             }
                             Command::Config => {
                                 execute_config_command();
@@ -47,16 +47,23 @@ fn exit_with_message(message: &str) {
     std::process::exit(1);
 }
 
-fn execute_list_command(config: &Config) -> std::io::Result<()> {
+fn execute_status_command(config: &Config) -> std::io::Result<()> {
+    println!("Here is the current status: ");
     match create_writing_list(config) {
         Ok(writings) => print_writing_list(writings),
-        Err(_) => exit_with_message("Couldn't print the writing list"),
+        Err(_) => exit_with_message("Couldn't print the writing list!"),
     }
     Ok(())
 }
 
-fn execute_stage_command() {
-    exit_with_message("stage command is called");
+fn execute_stage_command(config: &Config) {
+    match create_writing_list(config) {
+        Ok(writings) => match select_draft_writing_from_list(&writings) {
+            Some(writing) => println!("You picked {}", &writing.title),
+            None => exit_with_message("You haven't selected a draft!"),
+        },
+        Err(_) => exit_with_message("Could not get the writing list!"),
+    }
 }
 
 fn execute_config_command() {
