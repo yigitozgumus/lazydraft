@@ -14,6 +14,7 @@ pub struct Config {
     pub target_asset_dir: String,
     pub target_asset_prefix: String,
     pub yaml_asset_prefix: String,
+    pub sanitize_frontmatter: bool,
 }
 
 impl fmt::Display for Config {
@@ -25,6 +26,7 @@ impl fmt::Display for Config {
         writeln!(f, "    target_asset_dir: {}", self.target_asset_dir)?;
         writeln!(f, "    target_asset_prefix: {}", self.target_asset_prefix)?;
         writeln!(f, "    yaml_asset_prefix: {}", self.yaml_asset_prefix)?;
+        writeln!(f, "    sanitize_frontmatter: {}", self.sanitize_frontmatter)?;
         write!(f, "}}")
     }
 }
@@ -74,6 +76,7 @@ pub fn validate_config() -> ConfigResult<Config> {
                     target_asset_dir: String::new(),
                     target_asset_prefix: String::new(),
                     yaml_asset_prefix: String::new(),
+                    sanitize_frontmatter: false,
                 };
 
                 // Serialize the updated JSON structure
