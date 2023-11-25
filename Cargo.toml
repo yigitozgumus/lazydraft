@@ -1,0 +1,18 @@
+[package]
+name = "lazydraft"
+version = "3.0.0"
+edition = "2023"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0.108", features = ["derive"] }
+serde_json = "1"
+yaml-rust = "0.4.5"
+pulldown-cmark = "0.9.3"
+walkdir = "2.3.2"
+serde_yaml = "0.9.27"
+itertools = "0.12.0"
+chrono = "0.4.31"
+dialoguer = "0.11.0"
+regex = "1.10.2"
