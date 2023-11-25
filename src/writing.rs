@@ -9,6 +9,7 @@ use chrono::NaiveDate;
 use dialoguer::Select;
 use itertools::Itertools;
 use regex::Regex;
+use serde_yaml::Value;
 use walkdir::WalkDir;
 
 #[derive(Debug)]
@@ -76,26 +77,62 @@ pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writin
 }
 
 pub fn update_writing_content_and_transfer(config: &Config, writing: &Writing) -> io::Result<()> {
-    let markdown_content = fs::read_to_string(&writing.path)?;
-    let pattern = match Regex::new(r"!\[\[(.*?)\]\]") {
-        Ok(pattern) => Some(pattern),
-        Err(_) => None,
-    }
-    .expect("Failed to create Wikilink Regex");
-    let target_prefix = &config.target_asset_prefix;
-    let updated_content = pattern.replace_all(&markdown_content, |caps: &regex::Captures| {
-        if let Some(link) = caps.get(1) {
-            format!("![]({}/{})", target_prefix, link.as_str())
-        } else {
-            caps.get(0).unwrap().as_str().to_string()
+    if let Ok((frontmatter, markdown_content)) = read_markdown_file(&writing.path) {
+        let mut modifiable_frontmatter = frontmatter.clone();
+        if config.sanitize_frontmatter {
+            remove_empty_values(&mut modifiable_frontmatter);
         }
-    });
-    let writing_name = Path::new(&writing.path)
-        .file_name()
-        .expect("Could not parse writing name");
-    let target_file_name = Path::new(&config.target_dir).join(writing_name);
-    let mut new_file = File::create(target_file_name).expect("Could not create target file");
-    new_file.write_all(updated_content.as_bytes())
+        let pattern = match Regex::new(r"!\[\[(.*?)\]\]") {
+            Ok(pattern) => Some(pattern),
+            Err(_) => None,
+        }
+        .expect("Failed to create Wikilink Regex");
+        let target_prefix = &config.target_asset_prefix;
+        let updated_content = pattern.replace_all(&markdown_content, |caps: &regex::Captures| {
+            if let Some(link) = caps.get(1) {
+                format!("![]({}/{})", target_prefix, link.as_str())
+            } else {
+                caps.get(0).unwrap().as_str().to_string()
+            }
+        });
+        let writing_name = Path::new(&writing.path)
+            .file_name()
+            .expect("Could not parse writing name");
+        let target_file_name = Path::new(&config.target_dir).join(writing_name);
+        let merged_content = format!(
+            "---\n{}\n{}",
+            serde_yaml::to_string(&modifiable_frontmatter)
+                .expect("frontmatter format should be correct after modification"),
+            updated_content
+        );
+        let mut new_file = File::create(target_file_name).expect("Could not create target file");
+        new_file.write_all(merged_content.as_bytes())
+    } else {
+        Err(io::Error::new(io::ErrorKind::Other, "Cannot read writing."))
+    }
+}
+
+fn remove_empty_values(value: &mut Value) {
+    match value {
+        Value::Mapping(mapping) => {
+            let keys: Vec<_> = mapping
+                .iter()
+                .filter_map(|(k, v)| if v.is_null() { Some(k.clone()) } else { None })
+                .collect();
+
+            for key in keys {
+                mapping.remove(&key);
+            }
+
+            for (_, v) in mapping.iter_mut() {
+                remove_empty_values(v);
+            }
+        }
+        Value::Sequence(seq) => {
+            seq.iter_mut().for_each(|v| remove_empty_values(v));
+        }
+        _ => {}
+    }
 }
 
 pub fn read_markdown_file(
@@ -113,7 +150,7 @@ pub fn read_markdown_file(
         }
         _ => serde_yaml::Value::Null,
     };
-    let markdown_content: String = lines.collect();
+    let markdown_content = lines.collect_vec().join("\n");
     Ok((frontmatter, markdown_content))
 }
 

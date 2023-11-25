@@ -14,7 +14,7 @@ pub struct Asset {
     pub asset_path: String,
 }
 
-pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> Option<Vec<Asset>> {
+pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> io::Result<Vec<Asset>> {
     let (frontmatter, _) = read_markdown_file(&writing.path).unwrap();
     let prefix = &config.yaml_asset_prefix;
     let writing_prefix = frontmatter[prefix].as_str().unwrap();
@@ -34,13 +34,17 @@ pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> Option<V
         }
     }
     if asset_list.is_empty() {
-        None
+        Ok(Vec::new())
     } else {
-        Some(asset_list)
+        Ok(asset_list)
     }
 }
 
 pub fn transfer_asset_files(config: &Config, asset_list: Vec<Asset>) -> io::Result<()> {
+    if asset_list.is_empty() {
+        println!("No asset file found.");
+        return Ok(());
+    }
     for asset in asset_list {
         let path = Path::new(&asset.asset_path);
         let file_name = path.file_name().unwrap();

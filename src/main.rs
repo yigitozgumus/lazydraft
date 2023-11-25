@@ -74,7 +74,7 @@ fn execute_stage_command(config: &Config) -> std::io::Result<()> {
     let asset_list = get_asset_list_of_writing(selected_writing, config)
         .expect("Asset List could not be created");
 
-    match transfer_asset_files(&config, asset_list) {
+    match transfer_asset_files(config, asset_list) {
         Ok(_) => match update_writing_content_and_transfer(config, selected_writing) {
             Ok(_) => {
                 println!("Writing transferred successfully.");
