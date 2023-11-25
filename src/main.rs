@@ -2,7 +2,10 @@ use asset::{get_asset_list_of_writing, transfer_asset_files};
 use command::{parse_command, Command};
 use config::{validate_config, Config};
 use std::env;
-use writing::{create_writing_list, print_writing_list, select_draft_writing_from_list};
+use writing::{
+    create_writing_list, print_writing_list, select_draft_writing_from_list,
+    update_writing_content_and_transfer,
+};
 
 mod asset;
 mod command;
@@ -21,10 +24,16 @@ fn main() {
                     match parse_command(argument) {
                         Some(command) => match command {
                             Command::Status => {
-                                execute_status_command(&config).unwrap();
+                                match execute_status_command(&config) {
+                                    Ok(_) => {}
+                                    Err(err) => exit_with_message(&err.to_string()),
+                                };
                             }
                             Command::Stage => {
-                                execute_stage_command(&config);
+                                match execute_stage_command(&config) {
+                                    Ok(_) => {}
+                                    Err(err) => exit_with_message(&err.to_string()),
+                                };
                             }
                             Command::Config => {
                                 execute_config_command();
@@ -58,20 +67,22 @@ fn execute_status_command(config: &Config) -> std::io::Result<()> {
     Ok(())
 }
 
-fn execute_stage_command(config: &Config) {
-    match create_writing_list(config) {
-        Ok(writings) => match select_draft_writing_from_list(&writings) {
-            Some(writing) => {
-                if let Some(list) = get_asset_list_of_writing(writing, config) {
-                    match transfer_asset_files(&config, list) {
-                        Ok(_) => println!("Assets are copied"),
-                        Err(_) => exit_with_message("Assets are not copied"),
-                    }
-                };
+fn execute_stage_command(config: &Config) -> std::io::Result<()> {
+    let writing_list = create_writing_list(config).expect("Writing list could not be created");
+    let selected_writing =
+        select_draft_writing_from_list(&writing_list).expect("Writing is not selected");
+    let asset_list = get_asset_list_of_writing(selected_writing, config)
+        .expect("Asset List could not be created");
+
+    match transfer_asset_files(&config, asset_list) {
+        Ok(_) => match update_writing_content_and_transfer(config, selected_writing) {
+            Ok(_) => {
+                println!("Writing transferred successfully.");
+                Ok(())
             }
-            None => exit_with_message("You haven't selected a draft!"),
+            Err(err) => Err(err),
         },
-        Err(_) => exit_with_message("Could not get the writing list!"),
+        Err(err) => Err(err),
     }
 }
 

@@ -47,10 +47,11 @@ pub fn transfer_asset_files(config: &Config, asset_list: Vec<Asset>) -> io::Resu
         if path.is_file() {
             let destination_path = PathBuf::from(&config.target_asset_dir).join(file_name);
             match fs::copy(path, destination_path) {
-                Ok(_) => println!("File copied successfully."),
+                Ok(_) => {}
                 Err(err) => eprintln!("Error copying file: {}", err),
             }
         }
     }
+    println!("Asset files are copied successfully.");
     Ok(())
 }

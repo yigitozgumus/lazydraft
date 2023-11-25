@@ -1,24 +1,26 @@
 use std::{
-    fs, io,
+    fs::{self, File},
+    io::{self, Write},
     path::{Path, PathBuf},
 };
 
-use crate::{asset::Asset, config::Config};
+use crate::{asset::Asset, config::Config, exit_with_message};
 use chrono::NaiveDate;
 use dialoguer::Select;
 use itertools::Itertools;
+use regex::Regex;
 use walkdir::WalkDir;
 
 #[derive(Debug)]
 pub struct Writing {
-    pub path: PathBuf,
+    pub path: String,
     pub title: String,
     is_draft: bool,
     publish_date: Option<NaiveDate>,
 }
 
 impl Writing {
-    fn new(path: PathBuf, title: String, is_draft: bool, publish_date: &str) -> Self {
+    fn new(path: String, title: String, is_draft: bool, publish_date: &str) -> Self {
         let date = match NaiveDate::parse_from_str(publish_date, "%Y-%m-%d") {
             Ok(date) => Some(date),
             Err(_) => None,
@@ -73,8 +75,31 @@ pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writin
     }
 }
 
+pub fn update_writing_content_and_transfer(config: &Config, writing: &Writing) -> io::Result<()> {
+    let markdown_content = fs::read_to_string(&writing.path)?;
+    let pattern = match Regex::new(r"!\[\[(.*?)\]\]") {
+        Ok(pattern) => Some(pattern),
+        Err(_) => None,
+    }
+    .expect("Failed to create Wikilink Regex");
+    let target_prefix = &config.target_asset_prefix;
+    let updated_content = pattern.replace_all(&markdown_content, |caps: &regex::Captures| {
+        if let Some(link) = caps.get(1) {
+            format!("![]({}/{})", target_prefix, link.as_str())
+        } else {
+            caps.get(0).unwrap().as_str().to_string()
+        }
+    });
+    let writing_name = Path::new(&writing.path)
+        .file_name()
+        .expect("Could not parse writing name");
+    let target_file_name = Path::new(&config.target_dir).join(writing_name);
+    let mut new_file = File::create(target_file_name).expect("Could not create target file");
+    new_file.write_all(updated_content.as_bytes())
+}
+
 pub fn read_markdown_file(
-    file_path: &PathBuf,
+    file_path: &String,
 ) -> Result<(serde_yaml::Value, String), Box<dyn std::error::Error>> {
     let markdown_content = fs::read_to_string(file_path)?;
     let mut lines = markdown_content.lines().peekable();
@@ -102,15 +127,17 @@ pub fn create_writing_list(config: &Config) -> Result<Vec<Writing>, Box<dyn std:
     {
         if entry.file_type().is_file() && entry.path().extension().map_or(false, |e| e == "md") {
             let entry_path = entry.clone().into_path();
-            if let Ok((frontmatter, _)) = read_markdown_file(&entry_path) {
+            if let Ok((frontmatter, _)) =
+                read_markdown_file(&entry_path.as_path().display().to_string())
+            {
                 let title = frontmatter["title"]
                     .as_str()
                     .unwrap_or_default()
                     .to_string();
                 let is_draft = frontmatter["draft"].as_bool().unwrap_or(false);
                 let publish_date = frontmatter["publishDate"].as_str().unwrap_or("");
-
-                let writing = Writing::new(entry.into_path(), title, is_draft, publish_date);
+                let writing_path = entry_path.as_path().display().to_string();
+                let writing = Writing::new(writing_path, title, is_draft, publish_date);
                 writings.push(writing);
             }
         }
