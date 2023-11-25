@@ -10,9 +10,9 @@ pub type ConfigResult<T> = Result<T, String>;
 pub struct Config {
     pub source_dir: String,
     pub source_asset_dir: String,
-    target_dir: String,
-    target_asset_dir: String,
-    target_asset_prefix: String,
+    pub target_dir: String,
+    pub target_asset_dir: String,
+    pub target_asset_prefix: String,
     pub yaml_asset_prefix: String,
 }
 

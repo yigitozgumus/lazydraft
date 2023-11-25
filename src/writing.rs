@@ -1,6 +1,6 @@
-use std::fs;
+use std::{fs, io, path::PathBuf, task::Wake};
 
-use crate::config::Config;
+use crate::{asset::Asset, config::Config};
 use chrono::NaiveDate;
 use dialoguer::Select;
 use itertools::Itertools;
@@ -8,14 +8,14 @@ use walkdir::WalkDir;
 
 #[derive(Debug)]
 pub struct Writing {
-    path: String,
+    path: PathBuf,
     pub title: String,
     is_draft: bool,
     publish_date: Option<NaiveDate>,
 }
 
 impl Writing {
-    fn new(path: String, title: String, is_draft: bool, publish_date: &str) -> Self {
+    fn new(path: PathBuf, title: String, is_draft: bool, publish_date: &str) -> Self {
         let date = match NaiveDate::parse_from_str(publish_date, "%Y-%m-%d") {
             Ok(date) => Some(date),
             Err(_) => None,
@@ -40,11 +40,11 @@ pub fn print_writing_list(writings: Vec<Writing>) {
     }
 }
 
-pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> Option<Vec<String>> {
-    let (frontmatter, _) = read_markdown_file(&writing.path.to_string()).unwrap();
+pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> Option<Vec<Asset>> {
+    let (frontmatter, _) = read_markdown_file(&writing.path).unwrap();
     let prefix = &config.yaml_asset_prefix;
     let writing_prefix = frontmatter[prefix].as_str().unwrap();
-    let mut asset_list: Vec<String> = Vec::new();
+    let mut asset_list: Vec<Asset> = Vec::new();
     for asset in WalkDir::new(&config.source_asset_dir)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -52,7 +52,10 @@ pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> Option<V
         if asset.file_type().is_file() {
             let file_name = asset.file_name().to_string_lossy();
             if file_name.contains(writing_prefix) {
-                asset_list.push(asset.path().display().to_string());
+                let current = Asset {
+                    asset_path: asset.into_path(),
+                };
+                asset_list.push(current);
             }
         }
     }
@@ -61,6 +64,26 @@ pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> Option<V
     } else {
         Some(asset_list)
     }
+}
+
+pub fn transfer_asset_files(config: &Config, asset_list: Vec<Asset>) -> io::Result<()> {
+    for asset in asset_list {
+        if asset.asset_path.is_file() {
+            let source_path = asset.asset_path.clone();
+            let file_name = asset
+                .asset_path
+                .as_path()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap();
+            let destination_path = fs::canonicalize(&config.target_asset_dir)?.join(file_name);
+            println!("{}", destination_path.as_path().display().to_string());
+            println!("{}", source_path.as_path().display().to_string());
+            fs::copy(&source_path, &destination_path)?;
+        }
+    }
+    Ok(())
 }
 
 pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writing> {
@@ -94,7 +117,7 @@ pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writin
 }
 
 fn read_markdown_file(
-    file_path: &str,
+    file_path: &PathBuf,
 ) -> Result<(serde_yaml::Value, String), Box<dyn std::error::Error>> {
     let markdown_content = fs::read_to_string(file_path)?;
     let mut lines = markdown_content.lines().peekable();
@@ -121,7 +144,8 @@ pub fn create_writing_list(config: &Config) -> Result<Vec<Writing>, Box<dyn std:
         .filter_map(|e| e.ok())
     {
         if entry.file_type().is_file() && entry.path().extension().map_or(false, |e| e == "md") {
-            if let Ok((frontmatter, _)) = read_markdown_file(entry.path().to_str().unwrap()) {
+            let entry_path = entry.clone().into_path();
+            if let Ok((frontmatter, _)) = read_markdown_file(&entry_path) {
                 let title = frontmatter["title"]
                     .as_str()
                     .unwrap_or_default()
@@ -129,12 +153,7 @@ pub fn create_writing_list(config: &Config) -> Result<Vec<Writing>, Box<dyn std:
                 let is_draft = frontmatter["draft"].as_bool().unwrap_or(false);
                 let publish_date = frontmatter["publishDate"].as_str().unwrap_or("");
 
-                let writing = Writing::new(
-                    entry.path().display().to_string(),
-                    title,
-                    is_draft,
-                    publish_date,
-                );
+                let writing = Writing::new(entry.into_path(), title, is_draft, publish_date);
                 writings.push(writing);
             }
         }

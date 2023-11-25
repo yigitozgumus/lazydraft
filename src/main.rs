@@ -3,9 +3,10 @@ use config::{validate_config, Config};
 use std::env;
 use writing::{
     create_writing_list, get_asset_list_of_writing, print_writing_list,
-    select_draft_writing_from_list,
+    select_draft_writing_from_list, transfer_asset_files,
 };
 
+mod asset;
 mod command;
 mod config;
 mod writing;
@@ -64,8 +65,9 @@ fn execute_stage_command(config: &Config) {
         Ok(writings) => match select_draft_writing_from_list(&writings) {
             Some(writing) => {
                 if let Some(list) = get_asset_list_of_writing(writing, config) {
-                    for asset in list {
-                        println!("{}", asset);
+                    match transfer_asset_files(&config, list) {
+                        Ok(_) => println!("Assets are copied"),
+                        Err(_) => exit_with_message("Assets are not copied"),
                     }
                 };
             }
