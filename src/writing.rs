@@ -40,6 +40,29 @@ pub fn print_writing_list(writings: Vec<Writing>) {
     }
 }
 
+pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> Option<Vec<String>> {
+    let (frontmatter, _) = read_markdown_file(&writing.path.to_string()).unwrap();
+    let prefix = &config.yaml_asset_prefix;
+    let writing_prefix = frontmatter[prefix].as_str().unwrap();
+    let mut asset_list: Vec<String> = Vec::new();
+    for asset in WalkDir::new(&config.source_asset_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if asset.file_type().is_file() {
+            let file_name = asset.file_name().to_string_lossy();
+            if file_name.contains(writing_prefix) {
+                asset_list.push(asset.path().display().to_string());
+            }
+        }
+    }
+    if asset_list.is_empty() {
+        None
+    } else {
+        Some(asset_list)
+    }
+}
+
 pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writing> {
     let draft_writings: Vec<&Writing> = writings
         .iter()

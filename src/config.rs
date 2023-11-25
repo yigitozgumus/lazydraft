@@ -9,11 +9,11 @@ pub type ConfigResult<T> = Result<T, String>;
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub source_dir: String,
-    source_asset_dir: String,
+    pub source_asset_dir: String,
     target_dir: String,
     target_asset_dir: String,
     target_asset_prefix: String,
-    yaml_asset_prefix: String,
+    pub yaml_asset_prefix: String,
 }
 
 impl fmt::Display for Config {

@@ -1,7 +1,10 @@
 use command::{parse_command, Command};
 use config::{validate_config, Config};
 use std::env;
-use writing::{create_writing_list, print_writing_list, select_draft_writing_from_list};
+use writing::{
+    create_writing_list, get_asset_list_of_writing, print_writing_list,
+    select_draft_writing_from_list,
+};
 
 mod command;
 mod config;
@@ -59,7 +62,13 @@ fn execute_status_command(config: &Config) -> std::io::Result<()> {
 fn execute_stage_command(config: &Config) {
     match create_writing_list(config) {
         Ok(writings) => match select_draft_writing_from_list(&writings) {
-            Some(writing) => println!("You picked {}", &writing.title),
+            Some(writing) => {
+                if let Some(list) = get_asset_list_of_writing(writing, config) {
+                    for asset in list {
+                        println!("{}", asset);
+                    }
+                };
+            }
             None => exit_with_message("You haven't selected a draft!"),
         },
         Err(_) => exit_with_message("Could not get the writing list!"),
