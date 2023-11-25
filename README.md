@@ -31,5 +31,6 @@ Config command does not work at the moment. When you run it for the first time, 
 
 Currently the main functionality works. I will plan to add some frontmatter sanitization to further decrease of getting en unexpected error.
 
+- [x] Remove empty frontmatter properties.
 - [ ] Add coverImg area to frontmatter (Adding it in Obsidian seems pointless)
-- [ ] Remove empty frontmatter properties.
+
