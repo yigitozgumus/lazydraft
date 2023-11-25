@@ -1,4 +1,7 @@
-use std::{fs, io, path::PathBuf, task::Wake};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 use crate::{asset::Asset, config::Config};
 use chrono::NaiveDate;
@@ -53,7 +56,7 @@ pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> Option<V
             let file_name = asset.file_name().to_string_lossy();
             if file_name.contains(writing_prefix) {
                 let current = Asset {
-                    asset_path: asset.into_path(),
+                    asset_path: asset.into_path().display().to_string(),
                 };
                 asset_list.push(current);
             }
@@ -68,19 +71,14 @@ pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> Option<V
 
 pub fn transfer_asset_files(config: &Config, asset_list: Vec<Asset>) -> io::Result<()> {
     for asset in asset_list {
-        if asset.asset_path.is_file() {
-            let source_path = asset.asset_path.clone();
-            let file_name = asset
-                .asset_path
-                .as_path()
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap();
-            let destination_path = fs::canonicalize(&config.target_asset_dir)?.join(file_name);
-            println!("{}", destination_path.as_path().display().to_string());
-            println!("{}", source_path.as_path().display().to_string());
-            fs::copy(&source_path, &destination_path)?;
+        let path = Path::new(&asset.asset_path);
+        let file_name = path.file_name().unwrap();
+        if path.is_file() {
+            let destination_path = PathBuf::from(&config.target_asset_dir).join(file_name);
+            match fs::copy(path, destination_path) {
+                Ok(_) => println!("File copied successfully."),
+                Err(err) => eprintln!("Error copying file: {}", err),
+            }
         }
     }
     Ok(())

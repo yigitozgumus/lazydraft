@@ -1,6 +1,4 @@
-use std::path::{Path, PathBuf};
-
 #[derive(Debug)]
 pub struct Asset {
-    pub asset_path: PathBuf,
+    pub asset_path: String,
 }
