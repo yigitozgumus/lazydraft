@@ -39,10 +39,10 @@ fn main() {
                                 execute_config_command();
                             }
                         },
-                        None => exit_with_message("Invalid Command"),
+                        None => exit_with_message("Invalid Command."),
                     }
                 } else {
-                    exit_with_message("Invalid argument passing")
+                    exit_with_message("Invalid argument passing.")
                 }
             }
         }
