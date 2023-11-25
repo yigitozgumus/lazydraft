@@ -1,10 +1,8 @@
+use asset::{get_asset_list_of_writing, transfer_asset_files};
 use command::{parse_command, Command};
 use config::{validate_config, Config};
 use std::env;
-use writing::{
-    create_writing_list, get_asset_list_of_writing, print_writing_list,
-    select_draft_writing_from_list, transfer_asset_files,
-};
+use writing::{create_writing_list, print_writing_list, select_draft_writing_from_list};
 
 mod asset;
 mod command;
