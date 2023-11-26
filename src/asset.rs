@@ -40,7 +40,7 @@ pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> io::Resu
     }
 }
 
-pub fn transfer_asset_files(config: &Config, asset_list: Vec<Asset>) -> io::Result<()> {
+pub fn transfer_asset_files(config: &Config, asset_list: &Vec<Asset>) -> io::Result<()> {
     if asset_list.is_empty() {
         println!("No asset file found.");
         return Ok(());

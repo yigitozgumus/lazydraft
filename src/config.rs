@@ -15,6 +15,13 @@ pub struct Config {
     pub target_asset_prefix: String,
     pub yaml_asset_prefix: String,
     pub sanitize_frontmatter: bool,
+    pub auto_add_cover_img: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CoverImage {
+    pub src: String,
+    pub alt: String,
 }
 
 impl fmt::Display for Config {
@@ -27,6 +34,7 @@ impl fmt::Display for Config {
         writeln!(f, "    target_asset_prefix: {}", self.target_asset_prefix)?;
         writeln!(f, "    yaml_asset_prefix: {}", self.yaml_asset_prefix)?;
         writeln!(f, "    sanitize_frontmatter: {}", self.sanitize_frontmatter)?;
+        writeln!(f, "    auto_add_cover_img: {}", self.auto_add_cover_img)?;
         write!(f, "}}")
     }
 }
@@ -77,6 +85,7 @@ pub fn validate_config() -> ConfigResult<Config> {
                     target_asset_prefix: String::new(),
                     yaml_asset_prefix: String::new(),
                     sanitize_frontmatter: false,
+                    auto_add_cover_img: false,
                 };
 
                 // Serialize the updated JSON structure

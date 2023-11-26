@@ -4,7 +4,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{asset::Asset, config::Config, exit_with_message};
+use crate::{
+    asset::Asset,
+    config::{Config, CoverImage},
+    exit_with_message,
+};
 use chrono::NaiveDate;
 use dialoguer::Select;
 use itertools::Itertools;
@@ -76,11 +80,18 @@ pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writin
     }
 }
 
-pub fn update_writing_content_and_transfer(config: &Config, writing: &Writing) -> io::Result<()> {
+pub fn update_writing_content_and_transfer(
+    config: &Config,
+    writing: &Writing,
+    asset_list: &Vec<Asset>,
+) -> io::Result<()> {
     if let Ok((frontmatter, markdown_content)) = read_markdown_file(&writing.path) {
         let mut modifiable_frontmatter = frontmatter.clone();
         if config.sanitize_frontmatter {
             remove_empty_values(&mut modifiable_frontmatter);
+        }
+        if config.auto_add_cover_img {
+            add_cover_image(&mut modifiable_frontmatter, config, &asset_list);
         }
         let pattern = match Regex::new(r"!\[\[(.*?)\]\]") {
             Ok(pattern) => Some(pattern),
@@ -109,6 +120,40 @@ pub fn update_writing_content_and_transfer(config: &Config, writing: &Writing) -
         new_file.write_all(merged_content.as_bytes())
     } else {
         Err(io::Error::new(io::ErrorKind::Other, "Cannot read writing."))
+    }
+}
+
+fn add_cover_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<Asset>) {
+    let property_to_check = String::from(
+        frontmatter["assetPrefix"]
+            .as_str()
+            .expect("assetPrefix should be defined"),
+    ) + "-header";
+    let matching_assets: Vec<&Asset> = asset_list
+        .iter()
+        .filter(|asset| asset.asset_path.contains(&property_to_check))
+        .collect();
+    if !matching_assets.is_empty() {
+        let target_prefix = &config.target_asset_prefix;
+        let header_name = Path::new(
+            matching_assets
+                .first()
+                .expect("Header asset must exist")
+                .asset_path
+                .as_str(),
+        )
+        .file_name()
+        .expect("Header asset name should be valid");
+        let cover_img = CoverImage {
+            src: Path::new(target_prefix)
+                .join(header_name)
+                .as_path()
+                .display()
+                .to_string(),
+            alt: "Cover Image".to_string(),
+        };
+        frontmatter["coverImage"] =
+            serde_yaml::to_value(&cover_img).expect("Cover Image format should match");
     }
 }
 
