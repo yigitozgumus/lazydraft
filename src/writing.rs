@@ -128,11 +128,11 @@ pub fn update_writing_content_and_transfer(
 }
 
 fn add_cover_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<Asset>) {
-    let property_to_check = String::from(
-        frontmatter["assetPrefix"]
-            .as_str()
-            .expect("assetPrefix should be defined"),
-    ) + "-header";
+    let asset_prefix = frontmatter["assetPrefix"].as_str().unwrap_or("");
+    if asset_prefix.is_empty() {
+        return;
+    }
+    let property_to_check = String::from(asset_prefix) + "-header";
     let matching_assets: Vec<&Asset> = asset_list
         .iter()
         .filter(|asset| asset.asset_path.contains(&property_to_check))

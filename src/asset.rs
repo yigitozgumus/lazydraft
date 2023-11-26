@@ -17,7 +17,10 @@ pub struct Asset {
 pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> io::Result<Vec<Asset>> {
     let (frontmatter, _) = read_markdown_file(&writing.path).unwrap();
     let prefix = &config.yaml_asset_prefix;
-    let writing_prefix = frontmatter[prefix].as_str().unwrap();
+    let writing_prefix = frontmatter[prefix].as_str().unwrap_or("");
+    if writing_prefix.is_empty() {
+        return Ok(Vec::new());
+    }
     let mut asset_list: Vec<Asset> = Vec::new();
     for asset in WalkDir::new(&config.source_asset_dir)
         .into_iter()
