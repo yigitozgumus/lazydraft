@@ -87,6 +87,10 @@ pub fn update_writing_content_and_transfer(
 ) -> io::Result<()> {
     if let Ok((frontmatter, markdown_content)) = read_markdown_file(&writing.path) {
         let mut modifiable_frontmatter = frontmatter.clone();
+
+        if config.remove_draft_on_stage {
+            modifiable_frontmatter["draft"] = serde_yaml::to_value(false).expect("disable draft");
+        }
         if config.sanitize_frontmatter {
             remove_empty_values(&mut modifiable_frontmatter);
         }
