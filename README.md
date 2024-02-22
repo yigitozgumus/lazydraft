@@ -34,5 +34,5 @@ Currently, the main functionality works. I will plan to:
 - [x] Add some front matter sanitization to decrease further the likelihood of getting an unexpected error.
 - [x] Remove empty frontmatter properties.
 - [x] Add coverImage area to frontmatter (Adding it in Obsidian seems pointless)
-- [ ] Remove any Wikilink present in the Note. Expect the images. (This means that I can write stuff all the while linking to other stuff in Obsidian, but the formatting is handled automatically when I want to publish that thing)
+- [x] Remove any Wikilink present in the Note. Expect the images. (This means that I can write stuff all the while linking to other stuff in Obsidian, but the formatting is handled automatically when I want to publish that thing)
 
