@@ -15,7 +15,12 @@ I want to simplify this process.
 
 ## How to install
 
-Download the binary to any folder that is in your `$PATH`. I prefer `~/.local/bin`
+You can use [Homebrew](https://brew.sh) to install lazydraft.
+
+```bash
+brew tap yigitozgumus/formulae
+brew install lazydraft
+```
 
 ## How to use
 
