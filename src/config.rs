@@ -20,8 +20,8 @@ pub struct Config {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct CoverImage {
-    pub src: String,
+pub struct Image {
+    pub path: String,
     pub alt: String,
 }
 

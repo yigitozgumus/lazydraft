@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     asset::Asset,
-    config::{Config, CoverImage},
+    config::{Config, Image},
     exit_with_message,
 };
 use chrono::NaiveDate;
@@ -148,15 +148,15 @@ fn add_cover_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<As
         )
         .file_name()
         .expect("Header asset name should be valid");
-        let cover_img = CoverImage {
-            src: Path::new(target_prefix)
+        let cover_img = Image {
+            path: Path::new(target_prefix)
                 .join(header_name)
                 .as_path()
                 .display()
                 .to_string(),
             alt: "Cover Image".to_string(),
         };
-        frontmatter["coverImage"] =
+        frontmatter["image"] =
             serde_yaml::to_value(&cover_img).expect("Cover Image format should match");
     }
 }
