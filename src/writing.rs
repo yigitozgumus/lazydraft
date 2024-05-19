@@ -3,6 +3,7 @@ use std::{
     io::{self, Write},
     path::{Path, PathBuf},
 };
+use std::fmt::format;
 
 use crate::{
     asset::Asset,
@@ -110,9 +111,20 @@ pub fn update_writing_content_and_transfer(
                 caps.get(0).unwrap().as_str().to_string()
             }
         });
-        let writing_name = Path::new(&writing.path)
+
+        let mut writing_name = Path::new(&writing.path)
             .file_name()
-            .expect("Could not parse writing name");
+            .expect("Could not parse writing name")
+            .to_str()
+            .expect("Parsed writing name shouldn't be empty").to_string();
+
+        let publish_date = frontmatter["publishDate"].as_str().unwrap_or("");
+
+        if config.add_date_prefix && !publish_date.is_empty() {
+            let concatenation = format!("{}-{}", &publish_date, &writing_name).to_string();
+            writing_name = concatenation;
+        }
+
         let target_file_name = Path::new(&config.target_dir).join(writing_name);
         let merged_content = format!(
             "---\n{}\n{}",
