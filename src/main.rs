@@ -17,33 +17,31 @@ fn main() {
         Ok(config) => {
             if config.has_empty_fields() {
                 exit_with_message("There is an empty field in config. Please update it")
-            } else {
-                let args: Vec<String> = env::args().collect();
-                if args.len() == 2 {
-                    let argument = &args[1];
-                    match parse_command(argument) {
-                        Some(command) => match command {
-                            Command::Status => {
-                                match execute_status_command(&config) {
-                                    Ok(_) => {}
-                                    Err(err) => exit_with_message(&err.to_string()),
-                                };
-                            }
-                            Command::Stage => {
-                                match execute_stage_command(&config) {
-                                    Ok(_) => {}
-                                    Err(err) => exit_with_message(&err.to_string()),
-                                };
-                            }
-                            Command::Config => {
-                                execute_config_command();
-                            }
-                        },
-                        None => exit_with_message("Invalid Command."),
+            }
+            let args: Vec<String> = env::args().collect();
+            if args.len() != 2 {
+                exit_with_message("Invalid argument passing.")
+            }
+            let argument = &args[1];
+            match parse_command(argument) {
+                Some(command) => match command {
+                    Command::Status => {
+                        match execute_status_command(&config) {
+                            Ok(_) => {}
+                            Err(err) => exit_with_message(&err.to_string()),
+                        };
                     }
-                } else {
-                    exit_with_message("Invalid argument passing.")
-                }
+                    Command::Stage => {
+                        match execute_stage_command(&config) {
+                            Ok(_) => {}
+                            Err(err) => exit_with_message(&err.to_string()),
+                        };
+                    }
+                    Command::Config => {
+                        execute_config_command();
+                    }
+                },
+                None => exit_with_message("Invalid Command."),
             }
         }
         Err(e) => {
