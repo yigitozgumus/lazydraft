@@ -18,6 +18,7 @@ pub struct Config {
     pub auto_add_cover_img: bool,
     pub remove_draft_on_stage: bool,
     pub add_date_prefix: bool,
+    pub remove_wikilinks: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -38,6 +39,7 @@ impl fmt::Display for Config {
         writeln!(f, "    sanitize_frontmatter: {}", self.sanitize_frontmatter)?;
         writeln!(f, "    auto_add_cover_img: {}", self.auto_add_cover_img)?;
         writeln!(f, "    add_date_prefix: {}", self.add_date_prefix)?;
+        writeln!(f, "    remove_wikilinks: {}", self.remove_wikilinks)?;
         writeln!(
             f,
             "    remove_draft_on_stage: {}",
@@ -95,7 +97,8 @@ pub fn validate_config() -> ConfigResult<Config> {
                     sanitize_frontmatter: false,
                     auto_add_cover_img: false,
                     remove_draft_on_stage: false,
-                    add_date_prefix: false
+                    add_date_prefix: false,
+                    remove_wikilinks: false
                 };
 
                 // Serialize the updated JSON structure

@@ -3,6 +3,7 @@ use std::{
     io::{self, Write},
     path::{Path, PathBuf},
 };
+use std::borrow::Cow;
 use std::fmt::format;
 
 use crate::{
@@ -98,32 +99,12 @@ pub fn update_writing_content_and_transfer(
         if config.auto_add_cover_img {
             add_cover_image(&mut modifiable_frontmatter, config, &asset_list);
         }
-        let pattern = match Regex::new(r"!\[\[(.*?)\]\]") {
-            Ok(pattern) => Some(pattern),
-            Err(_) => None,
+        let mut updated_content = change_image_formats(markdown_content, config);
+        if config.remove_wikilinks {
+            updated_content = strip_wikilinks(updated_content.to_string());
         }
-        .expect("Failed to create Wikilink Regex");
-        let target_prefix = &config.target_asset_prefix;
-        let updated_content = pattern.replace_all(&markdown_content, |caps: &regex::Captures| {
-            if let Some(link) = caps.get(1) {
-                format!("![]({}/{})", target_prefix, link.as_str())
-            } else {
-                caps.get(0).unwrap().as_str().to_string()
-            }
-        });
 
-        let mut writing_name = Path::new(&writing.path)
-            .file_name()
-            .expect("Could not parse writing name")
-            .to_str()
-            .expect("Parsed writing name shouldn't be empty").to_string();
-
-        let publish_date = frontmatter["publishDate"].as_str().unwrap_or("");
-
-        if config.add_date_prefix && !publish_date.is_empty() {
-            let concatenation = format!("{}-{}", &publish_date, &writing_name).to_string();
-            writing_name = concatenation;
-        }
+        let writing_name = create_writing_name(&mut modifiable_frontmatter, config, writing);
 
         let target_file_name = Path::new(&config.target_dir).join(writing_name);
         let merged_content = format!(
@@ -137,6 +118,53 @@ pub fn update_writing_content_and_transfer(
     } else {
         Err(io::Error::new(io::ErrorKind::Other, "Cannot read writing."))
     }
+}
+
+fn change_image_formats(content: String, config: &Config) -> String {
+    let pattern = match Regex::new(r"!\[\[(.*?)\]\]") {
+        Ok(pattern) => Some(pattern),
+        Err(_) => None,
+    }
+        .expect("Failed to create Wikilink Regex");
+    let target_prefix = &config.target_asset_prefix;
+    pattern.replace_all(&content, |caps: &regex::Captures| {
+        if let Some(link) = caps.get(1) {
+            format!("![]({}/{})", target_prefix, link.as_str())
+        } else {
+            caps.get(0).unwrap().as_str().to_string()
+        }
+    }).clone().to_string()
+}
+
+fn strip_wikilinks(content: String) -> String {
+    let pattern = match Regex::new(r"\[\[(.*?)\]\]") {
+        Ok(pattern) => Some(pattern),
+        Err(_) => None,
+    }
+        .expect("Failed to create Wikilink Regex");
+    pattern.replace_all(&content, |caps: &regex::Captures| {
+        if let Some(link) = caps.get(1) {
+            format!("{}", link.as_str())
+        } else {
+            caps.get(0).unwrap().as_str().to_string()
+        }
+    }).clone().to_string()
+}
+
+fn create_writing_name(frontmatter: &mut Value, config: &Config, writing: &Writing) -> String {
+    let mut writing_name = Path::new(&writing.path)
+        .file_name()
+        .expect("Could not parse writing name")
+        .to_str()
+        .expect("Parsed writing name shouldn't be empty").to_string();
+
+    let publish_date = frontmatter["publishDate"].as_str().unwrap_or("");
+
+    if config.add_date_prefix && !publish_date.is_empty() {
+        let concatenation = format!("{}-{}", &publish_date, &writing_name).to_string();
+        writing_name = concatenation;
+    }
+    writing_name
 }
 
 fn add_cover_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<Asset>) {
