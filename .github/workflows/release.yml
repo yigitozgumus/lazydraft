@@ -122,7 +122,11 @@ jobs:
         run: |
           cd homebrew-formulae
           cd Formula
+          # Update the version lines
+          sed -i '' "s|version \".*\"|version \"${{ env.tag_name }}\"|g" lazydraft.rb
+          # Update the URL
           sed -i '' "s|url \".*\"|url \"https://github.com/yigitozgumus/lazydraft/releases/download/${{ env.tag_name }}/lazydraft-macos-amd64.tar.gz\"|" lazydraft.rb
+          # Update the sha256
           sed -i '' "s|sha256 \".*\"|sha256 \"${{ steps.sha256.outputs.sha256 }}\"|" lazydraft.rb
           git add lazydraft.rb
           git commit -m "Update lazydraft formula for version ${{ env.tag_name }}"
