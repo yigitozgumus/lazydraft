@@ -48,6 +48,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract Tag Name
+        id: extract_tag
+        run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -101,7 +105,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         id: sha256
         run: |
-          curl -L -o lazydraft.tar.gz https://github.com/yigitozgumus/lazydraft/releases/download/${{ github.event.release.tag_name }}/lazydraft-macos-amd64.tar.gz
+          curl -L -o lazydraft.tar.gz https://github.com/yigitozgumus/lazydraft/releases/download/${{ env.tag_name }}/lazydraft-macos-amd64.tar.gz
           shasum -a 256 lazydraft.tar.gz | awk '{ print $1 }' > sha256.txt
           echo "::set-output name=sha256::$(cat sha256.txt)"
 
@@ -118,8 +122,8 @@ jobs:
         run: |
           cd homebrew-formulae
           cd Formula
-          sed -i '' "s|url \".*\"|url \"https://github.com/yigitozgumus/lazydraft/releases/download/${{ github.event.release.tag_name }}/lazydraft-macos-amd64.tar.gz\"|" lazydraft.rb
+          sed -i '' "s|url \".*\"|url \"https://github.com/yigitozgumus/lazydraft/releases/download/${{ env.tag_name }}/lazydraft-macos-amd64.tar.gz\"|" lazydraft.rb
           sed -i '' "s|sha256 \".*\"|sha256 \"${{ steps.sha256.outputs.sha256 }}\"|" lazydraft.rb
           git add lazydraft.rb
-          git commit -m "Update lazydraft formula for version ${{ github.event.release.tag_name }}"
+          git commit -m "Update lazydraft formula for version ${{ env.tag_name }}"
           git push https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git main
