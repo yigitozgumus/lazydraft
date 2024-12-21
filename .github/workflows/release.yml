@@ -102,7 +102,7 @@ jobs:
         id: sha256
         run: |
           curl -L -o lazydraft.tar.gz https://github.com/yigitozgumus/lazydraft/releases/download/${{ github.event.release.tag_name }}/lazydraft-macos-amd64.tar.gz
-          sha256sum lazydraft.tar.gz | awk '{ print $1 }' > sha256.txt
+          shasum -a 256 lazydraft.tar.gz | awk '{ print $1 }' > sha256.txt
           echo "::set-output name=sha256::$(cat sha256.txt)"
 
       - name: Clone Homebrew Tap
