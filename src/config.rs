@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 pub type ConfigResult<T> = Result<T, String>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
     pub source_dir: String,
     pub source_asset_dir: String,
@@ -98,7 +98,7 @@ pub fn validate_config() -> ConfigResult<Config> {
                     auto_add_cover_img: false,
                     remove_draft_on_stage: false,
                     add_date_prefix: false,
-                    remove_wikilinks: false
+                    remove_wikilinks: false,
                 };
 
                 // Serialize the updated JSON structure

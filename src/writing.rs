@@ -1,10 +1,10 @@
+use std::borrow::Cow;
+use std::fmt::format;
 use std::{
     fs::{self, File},
     io::{self, Write},
     path::{Path, PathBuf},
 };
-use std::borrow::Cow;
-use std::fmt::format;
 
 use crate::{
     asset::Asset,
@@ -22,7 +22,7 @@ use walkdir::WalkDir;
 pub struct Writing {
     pub path: String,
     pub title: String,
-    is_draft: bool,
+    pub is_draft: bool,
     publish_date: Option<NaiveDate>,
 }
 
@@ -125,15 +125,18 @@ fn change_image_formats(content: String, config: &Config) -> String {
         Ok(pattern) => Some(pattern),
         Err(_) => None,
     }
-        .expect("Failed to create Wikilink Regex");
+    .expect("Failed to create Wikilink Regex");
     let target_prefix = &config.target_asset_prefix;
-    pattern.replace_all(&content, |caps: &regex::Captures| {
-        if let Some(link) = caps.get(1) {
-            format!("![]({}/{})", target_prefix, link.as_str())
-        } else {
-            caps.get(0).unwrap().as_str().to_string()
-        }
-    }).clone().to_string()
+    pattern
+        .replace_all(&content, |caps: &regex::Captures| {
+            if let Some(link) = caps.get(1) {
+                format!("![]({}/{})", target_prefix, link.as_str())
+            } else {
+                caps.get(0).unwrap().as_str().to_string()
+            }
+        })
+        .clone()
+        .to_string()
 }
 
 fn strip_wikilinks(content: String) -> String {
@@ -141,14 +144,17 @@ fn strip_wikilinks(content: String) -> String {
         Ok(pattern) => Some(pattern),
         Err(_) => None,
     }
-        .expect("Failed to create Wikilink Regex");
-    pattern.replace_all(&content, |caps: &regex::Captures| {
-        if let Some(link) = caps.get(1) {
-            format!("{}", link.as_str())
-        } else {
-            caps.get(0).unwrap().as_str().to_string()
-        }
-    }).clone().to_string()
+    .expect("Failed to create Wikilink Regex");
+    pattern
+        .replace_all(&content, |caps: &regex::Captures| {
+            if let Some(link) = caps.get(1) {
+                format!("{}", link.as_str())
+            } else {
+                caps.get(0).unwrap().as_str().to_string()
+            }
+        })
+        .clone()
+        .to_string()
 }
 
 fn create_writing_name(frontmatter: &mut Value, config: &Config, writing: &Writing) -> String {
@@ -156,7 +162,8 @@ fn create_writing_name(frontmatter: &mut Value, config: &Config, writing: &Writi
         .file_name()
         .expect("Could not parse writing name")
         .to_str()
-        .expect("Parsed writing name shouldn't be empty").to_string();
+        .expect("Parsed writing name shouldn't be empty")
+        .to_string();
 
     let publish_date = frontmatter["publishDate"].as_str().unwrap_or("");
 
