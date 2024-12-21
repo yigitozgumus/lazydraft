@@ -3,22 +3,17 @@ pub enum Command {
     Status,
     Stage(StageOptions),
     Config,
+    Info,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct StageOptions {
     pub continuous: bool,
 }
 
-impl Default for StageOptions {
-    fn default() -> Self {
-        StageOptions { continuous: false }
-    }
-}
-
 pub fn parse_command(args: &[String]) -> Option<Command> {
     if args.is_empty() {
-        return None;
+        return Some(Command::Info);
     }
 
     match args[0].as_str() {

@@ -44,6 +44,9 @@ fn main() {
                     Command::Config => {
                         execute_config_command();
                     }
+                    Command::Info => {
+                        execute_info_command();
+                    }
                 },
                 None => exit_with_message("Invalid Command."),
             }
@@ -53,6 +56,26 @@ fn main() {
             std::process::exit(1);
         }
     }
+}
+
+fn execute_info_command() {
+    let version = env!("CARGO_PKG_VERSION");
+    println!(
+        r#"
+LazyDraft - Version {}
+
+Available Commands:
+  status       - Displays the current status of your drafts and writings.
+  stage        - Stages drafts and transfers content to the target location.
+                 Options:
+                 --continuous: Enables continuous monitoring and staging.
+  config       - Validates and manages configuration settings.
+
+Documentation and Help:
+  Visit https://github.com/yigitozgumus/lazydraft for more details.
+"#,
+        version
+    );
 }
 
 fn exit_with_message(message: &str) {
