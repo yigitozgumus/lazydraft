@@ -95,6 +95,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Clone Homebrew Tap
+      if: matrix.os == 'macos-latest'
       run: |
         git clone https://github.com/yigitozgumus/homebrew-formuale.git
         cd homebrew-formulae
@@ -102,6 +103,7 @@ jobs:
         git config user.email "actions@github.com"
 
     - name: Update Formula
+      if: matrix.os == 'macos-latest'
       run: |
         cd Formula
         sed -i "s|url .*|url \"https://github.com/yigitozgumus/lazydraft/releases/download/${{ github.event.release.tag_name }}/lazydraft-v${{ github.event.release.tag_name }}.tar.gz\"|" lazydraft.rb
