@@ -93,3 +93,19 @@ jobs:
         files: ${{ matrix.asset_name }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Clone Homebrew Tap
+      run: |
+        git clone https://github.com/yigitozgumus/homebrew-formuale.git
+        cd homebrew-formulae
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+    - name: Update Formula
+      run: |
+        cd Formula
+        sed -i "s|url .*|url \"https://github.com/yigitozgumus/lazydraft/releases/download/${{ github.event.release.tag_name }}/lazydraft-v${{ github.event.release.tag_name }}.tar.gz\"|" lazydraft.rb
+        sed -i "s|sha256 .*|sha256 \"${{ steps.sha256.outputs.sha256 }}\"|" lazydraft.rb
+        git add lazydraft.rb
+        git commit -m "Update lazydraft formula for version ${{ github.event.release.tag_name }}"
+        git push origin main
