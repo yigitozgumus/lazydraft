@@ -23,9 +23,6 @@ fn main() {
                 exit_with_message("There is an empty field in config. Please update it")
             }
             let args: Vec<String> = env::args().collect();
-            if args.len() <= 2 {
-                exit_with_message("Invalid argument passing.")
-            }
 
             // Split args into command and flags
             let command_args: Vec<String> = args.iter().skip(1).cloned().collect();
