@@ -8,6 +8,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -97,7 +100,7 @@ jobs:
     - name: Clone Homebrew Tap
       if: matrix.os == 'macos-latest'
       run: |
-        git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git
+        git clone https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git
         cd homebrew-formulae
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
@@ -111,4 +114,4 @@ jobs:
         sed -i '' "s|sha256 .*|sha256 \"${{ steps.sha256.outputs.sha256 }}\"|" lazydraft.rb
         git add lazydraft.rb
         git commit -m "Update lazydraft formula for version ${{ github.event.release.tag_name }}"
-        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git main
+        git push https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git main
