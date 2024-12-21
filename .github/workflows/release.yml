@@ -46,72 +46,80 @@ jobs:
             executable_name: lazydraft.exe
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        target: ${{ matrix.target }}
-        override: true
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
 
-    - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --target ${{ matrix.target }}
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
 
-    - name: Run tests
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --target ${{ matrix.target }}
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --target ${{ matrix.target }}
 
-    - name: Package Binary (Unix)
-      if: matrix.os != 'windows-latest'
-      run: |
-        cd target/${{ matrix.target }}/release
-        tar czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.executable_name }}
-        cd ../../..
+      - name: Package Binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.executable_name }}
+          cd ../../..
 
-    - name: Package Binary (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        cd target/${{ matrix.target }}/release
-        7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.executable_name }}
-        cd ../../..
+      - name: Package Binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.executable_name }}
+          cd ../../..
 
-    - name: Upload Release Asset (Unix)
-      if: matrix.os != 'windows-latest'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: ${{ matrix.asset_name }}.tar.gz
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Release Asset (Unix)
+        if: matrix.os != 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ matrix.asset_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload Release Asset (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: ${{ matrix.asset_name }}.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Release Asset (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ matrix.asset_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Clone Homebrew Tap
-      if: matrix.os == 'macos-latest'
-      run: |
-        git clone https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git
-        cd homebrew-formulae
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
+      - name: Compute SHA256
+        if: matrix.os == 'macos-latest'
+        id: sha256
+        run: |
+          curl -L -o lazydraft.tar.gz https://github.com/yigitozgumus/lazydraft/releases/download/${{ github.event.release.tag_name }}/lazydraft-macos-amd64.tar.gz
+          sha256sum lazydraft.tar.gz | awk '{ print $1 }' > sha256.txt
+          echo "::set-output name=sha256::$(cat sha256.txt)"
 
-    - name: Update Formula
-      if: matrix.os == 'macos-latest'
-      run: |
-        cd homebrew-formulae
-        cd Formula
-        sed -i '' "s|url .*|url \"https://github.com/yigitozgumus/lazydraft/releases/download/${{ github.event.release.tag_name }}/lazydraft-v${{ github.event.release.tag_name }}.tar.gz\"|" lazydraft.rb
-        sed -i '' "s|sha256 .*|sha256 \"${{ steps.sha256.outputs.sha256 }}\"|" lazydraft.rb
-        git add lazydraft.rb
-        git commit -m "Update lazydraft formula for version ${{ github.event.release.tag_name }}"
-        git push https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git main
+      - name: Clone Homebrew Tap
+        if: matrix.os == 'macos-latest'
+        run: |
+          git clone https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git
+          cd homebrew-formulae
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Update Formula
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd homebrew-formulae
+          cd Formula
+          sed -i '' "s|url \".*\"|url \"https://github.com/yigitozgumus/lazydraft/releases/download/${{ github.event.release.tag_name }}/lazydraft-macos-amd64.tar.gz\"|" lazydraft.rb
+          sed -i '' "s|sha256 \".*\"|sha256 \"${{ steps.sha256.outputs.sha256 }}\"|" lazydraft.rb
+          git add lazydraft.rb
+          git commit -m "Update lazydraft formula for version ${{ github.event.release.tag_name }}"
+          git push https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git main
