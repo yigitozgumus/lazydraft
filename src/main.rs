@@ -23,7 +23,7 @@ fn main() {
                 exit_with_message("There is an empty field in config. Please update it")
             }
             let args: Vec<String> = env::args().collect();
-            if args.len() < 2 {
+            if args.len() <= 2 {
                 exit_with_message("Invalid argument passing.")
             }
 
