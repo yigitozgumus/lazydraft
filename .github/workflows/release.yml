@@ -97,7 +97,7 @@ jobs:
     - name: Clone Homebrew Tap
       if: matrix.os == 'macos-latest'
       run: |
-        git clone https://github.com/yigitozgumus/homebrew-formulae.git
+        git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/yigitozgumus/homebrew-formulae.git
         cd homebrew-formulae
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
