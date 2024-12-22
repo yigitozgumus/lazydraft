@@ -1,15 +1,12 @@
-use std::borrow::Cow;
-use std::fmt::format;
 use std::{
     fs::{self, File},
     io::{self, Write},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use crate::{
     asset::Asset,
     config::{Config, Image},
-    exit_with_message,
 };
 use chrono::NaiveDate;
 use dialoguer::Select;
