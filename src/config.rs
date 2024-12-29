@@ -129,6 +129,8 @@ pub fn validate_config() -> ConfigResult<Config> {
                     remove_draft_on_stage: false,
                     add_date_prefix: false,
                     remove_wikilinks: false,
+                    target_hero_image_prefix: String::new(),
+                    auto_add_hero_img: false,
                 };
 
                 // Serialize the updated JSON structure
