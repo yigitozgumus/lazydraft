@@ -19,12 +19,9 @@ use std::time::Duration;
 fn main() {
     match validate_config() {
         Ok(config) => {
-            match config.has_empty_fields() {
-                Some(config) => {
-                    let message = format!("{} is empty, please update config", config);
-                    exit_with_message(message.as_str());
-                }
-                None => {}
+            if let Some(config) = config.has_empty_fields() {
+                let message = format!("{} is empty, please update config", config);
+                exit_with_message(message.as_str());
             }
             let args: Vec<String> = env::args().collect();
 
