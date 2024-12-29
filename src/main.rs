@@ -3,6 +3,7 @@ use command::{parse_command, Command, StageOptions};
 use config::{validate_config, Config};
 use std::env;
 use std::path::Path;
+use std::process::Command as ProcessCommand;
 use writing::{
     create_writing_list, print_writing_list, select_draft_writing_from_list,
     update_writing_content_and_transfer,
@@ -19,10 +20,6 @@ use std::time::Duration;
 fn main() {
     match validate_config() {
         Ok(config) => {
-            if let Some(config) = config.has_empty_fields() {
-                let message = format!("{} is empty, please update config", config);
-                exit_with_message(message.as_str());
-            }
             let args: Vec<String> = env::args().collect();
 
             // Split args into command and flags
@@ -31,12 +28,14 @@ fn main() {
             match parse_command(&command_args) {
                 Some(command) => match command {
                     Command::Status => {
+                        check_config_for_empty_fields(&config);
                         match execute_status_command(&config) {
                             Ok(_) => {}
                             Err(err) => exit_with_message(&err.to_string()),
                         };
                     }
                     Command::Stage(options) => {
+                        check_config_for_empty_fields(&config);
                         match execute_stage_command(&config, options) {
                             Ok(_) => {}
                             Err(err) => exit_with_message(&err.to_string()),
@@ -56,6 +55,16 @@ fn main() {
             eprintln!("Error: {}", e);
             std::process::exit(1);
         }
+    }
+}
+
+fn check_config_for_empty_fields(config: &Config) {
+    if let Some(config) = config.has_empty_fields() {
+        let message = format!(
+            "{} is empty, please update config. You can open config using lazydraft config",
+            config
+        );
+        exit_with_message(message.as_str());
     }
 }
 
@@ -94,7 +103,24 @@ fn execute_status_command(config: &Config) -> std::io::Result<()> {
 }
 
 fn execute_config_command() {
-    exit_with_message("config command is called");
+    if let Ok(home) = env::var("HOME") {
+        let config_path = format!("{}/.config/lazydraft/lazydraft.json", home);
+        // Get the value of the $EDITOR environment variable
+        let editor = env::var("EDITOR").unwrap_or_else(|_| "nano".to_string()); // Default to 'nano' if $EDITOR is not set
+        let status = ProcessCommand::new(editor)
+            .arg(config_path)
+            .status()
+            .expect("Failed to open file with editor");
+
+        // Check if the editor exited successfully
+        if status.success() {
+            println!("Config edited successfully.");
+        } else {
+            eprintln!("Editor exited with an error.");
+        }
+    } else {
+        exit_with_message("HOME variable is not set");
+    }
 }
 
 fn execute_stage_command(config: &Config, options: StageOptions) -> std::io::Result<()> {
