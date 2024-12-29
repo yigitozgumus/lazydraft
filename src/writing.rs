@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     asset::Asset,
-    config::{Config, Image},
+    config::{Config, HeroImage, Image},
 };
 use chrono::NaiveDate;
 use dialoguer::Select;
@@ -95,6 +95,9 @@ pub fn update_writing_content_and_transfer(
         }
         if config.auto_add_cover_img {
             add_cover_image(&mut modifiable_frontmatter, config, &asset_list);
+        }
+        if config.auto_add_hero_img {
+            add_hero_image(&mut modifiable_frontmatter, config, &asset_list);
         }
         let mut updated_content = change_image_formats(markdown_content, config);
         if config.remove_wikilinks {
@@ -201,6 +204,40 @@ fn add_cover_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<As
             alt: "Cover Image".to_string(),
         };
         frontmatter["image"] =
+            serde_yaml::to_value(&cover_img).expect("Cover Image format should match");
+    }
+}
+
+fn add_hero_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<Asset>) {
+    let asset_prefix = frontmatter["assetPrefix"].as_str().unwrap_or("");
+    if asset_prefix.is_empty() {
+        return;
+    }
+    let property_to_check = String::from(asset_prefix) + "-header";
+    let matching_assets: Vec<&Asset> = asset_list
+        .iter()
+        .filter(|asset| asset.asset_path.contains(&property_to_check))
+        .collect();
+    if !matching_assets.is_empty() {
+        let target_prefix = &config.target_hero_image_prefix;
+        let header_name = Path::new(
+            matching_assets
+                .first()
+                .expect("Header asset must exist")
+                .asset_path
+                .as_str(),
+        )
+        .file_name()
+        .expect("Header asset name should be valid");
+        let cover_img = HeroImage {
+            path: Path::new(target_prefix)
+                .join(header_name)
+                .as_path()
+                .display()
+                .to_string(),
+            alt: "Social Cover Image".to_string(),
+        };
+        frontmatter["heroImage"] =
             serde_yaml::to_value(&cover_img).expect("Cover Image format should match");
     }
 }

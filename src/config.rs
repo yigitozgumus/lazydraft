@@ -13,9 +13,11 @@ pub struct Config {
     pub target_dir: String,
     pub target_asset_dir: String,
     pub target_asset_prefix: String,
+    pub target_hero_image_prefix: String,
     pub yaml_asset_prefix: String,
     pub sanitize_frontmatter: bool,
     pub auto_add_cover_img: bool,
+    pub auto_add_hero_img: bool,
     pub remove_draft_on_stage: bool,
     pub add_date_prefix: bool,
     pub remove_wikilinks: bool,
@@ -23,6 +25,12 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize)]
 pub struct Image {
+    pub path: String,
+    pub alt: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct HeroImage {
     pub path: String,
     pub alt: String,
 }
@@ -35,9 +43,15 @@ impl fmt::Display for Config {
         writeln!(f, "    target_dir: {}", self.target_dir)?;
         writeln!(f, "    target_asset_dir: {}", self.target_asset_dir)?;
         writeln!(f, "    target_asset_prefix: {}", self.target_asset_prefix)?;
+        writeln!(
+            f,
+            "    target_hero_image_prefix: {}",
+            self.target_hero_image_prefix
+        )?;
         writeln!(f, "    yaml_asset_prefix: {}", self.yaml_asset_prefix)?;
         writeln!(f, "    sanitize_frontmatter: {}", self.sanitize_frontmatter)?;
         writeln!(f, "    auto_add_cover_img: {}", self.auto_add_cover_img)?;
+        writeln!(f, "    auto_add_hero_img: {}", self.auto_add_hero_img)?;
         writeln!(f, "    add_date_prefix: {}", self.add_date_prefix)?;
         writeln!(f, "    remove_wikilinks: {}", self.remove_wikilinks)?;
         writeln!(
@@ -50,13 +64,29 @@ impl fmt::Display for Config {
 }
 impl Config {
     // Method to check if any fields are empty
-    pub fn has_empty_fields(&self) -> bool {
-        self.source_dir.is_empty()
-            || self.source_asset_dir.is_empty()
-            || self.target_dir.is_empty()
-            || self.target_asset_dir.is_empty()
-            || self.target_asset_prefix.is_empty()
-            || self.yaml_asset_prefix.is_empty()
+    pub fn has_empty_fields(&self) -> Option<String> {
+        if self.source_dir.is_empty() {
+            return Some("source_dir".to_string());
+        }
+        if self.source_asset_dir.is_empty() {
+            return Some("source_asset_dir".to_string());
+        }
+        if self.target_dir.is_empty() {
+            return Some("target_dir".to_string());
+        }
+        if self.target_asset_dir.is_empty() {
+            return Some("target_asset_dir".to_string());
+        }
+        if self.target_asset_prefix.is_empty() {
+            return Some("target_asset_dir".to_string());
+        }
+        if self.yaml_asset_prefix.is_empty() {
+            return Some("yaml_asset_prefix".to_string());
+        }
+        if self.target_hero_image_prefix.is_empty() {
+            return Some("target_hero_image_prefix".to_string());
+        }
+        return None;
     }
 }
 
