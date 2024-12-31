@@ -83,10 +83,7 @@ impl Config {
         if self.yaml_asset_prefix.is_empty() {
             return Some("yaml_asset_prefix".to_string());
         }
-        if self.target_hero_image_prefix.is_empty() {
-            return Some("target_hero_image_prefix".to_string());
-        }
-        return None;
+        None
     }
 }
 
