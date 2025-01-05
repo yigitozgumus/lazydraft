@@ -21,6 +21,10 @@ pub struct Config {
     pub remove_draft_on_stage: bool,
     pub add_date_prefix: bool,
     pub remove_wikilinks: bool,
+    #[serde(default)]
+    pub trim_tags: Option<bool>,
+    #[serde(default)]
+    pub tag_prefix: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

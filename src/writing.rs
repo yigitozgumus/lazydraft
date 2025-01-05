@@ -99,6 +99,12 @@ pub fn update_writing_content_and_transfer(
         if config.auto_add_hero_img {
             add_hero_image(&mut modifiable_frontmatter, config, &asset_list);
         }
+        if config.trim_tags.unwrap_or(false) {
+            strip_tags(
+                &mut modifiable_frontmatter,
+                &config.tag_prefix.as_deref().unwrap_or(""),
+            );
+        }
         let mut updated_content = change_image_formats(markdown_content, config);
         if config.remove_wikilinks {
             updated_content = strip_wikilinks(updated_content.to_string());
@@ -117,6 +123,20 @@ pub fn update_writing_content_and_transfer(
         new_file.write_all(merged_content.as_bytes())
     } else {
         Err(io::Error::new(io::ErrorKind::Other, "Cannot read writing."))
+    }
+}
+
+pub fn strip_tags(frontmatter: &mut serde_yaml::Value, tag_prefix: &str) {
+    if let Some(tags) = frontmatter.get_mut("tags") {
+        if let Some(tag_list) = tags.as_sequence_mut() {
+            for tag in tag_list.iter_mut() {
+                if let Some(tag_str) = tag.as_str() {
+                    if let Some(stripped) = tag_str.strip_prefix(tag_prefix) {
+                        *tag = serde_yaml::Value::String(stripped.to_string());
+                    }
+                }
+            }
+        }
     }
 }
 
