@@ -34,12 +34,7 @@ pub fn parse_command(args: &[String]) -> Option<Command> {
             }
             Some(Command::Stage(options))
         }
-        "config" => {
-            if args.len() > 1 {
-                return None; // config command doesn't accept flags
-            }
-            Some(Command::Config)
-        }
+        "config" => Some(Command::Config),
         _ => None,
     }
 }

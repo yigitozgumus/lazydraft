@@ -42,7 +42,7 @@ fn main() {
                         };
                     }
                     Command::Config => {
-                        execute_config_command();
+                        execute_config_command(command_args[1..].to_vec());
                     }
                     Command::Info => {
                         execute_info_command();
@@ -102,25 +102,65 @@ fn execute_status_command(config: &Config) -> std::io::Result<()> {
     Ok(())
 }
 
-fn execute_config_command() {
+pub fn execute_config_command(args: Vec<String>) {
+    // Check for additional flags
+    if args.contains(&"--edit".to_string()) {
+        open_config_in_editor();
+    } else if args.contains(&"--info".to_string()) {
+        display_config_info();
+    } else {
+        println!(
+            "The `config` command allows you to manage the configuration.\n\n\
+            Usage:\n  --edit   Open the config file in your selected editor.\n  \
+            --info   Display information about each configuration option.\n\n\
+            Example:\n  lazydraft config --edit\n  lazydraft config --info"
+        );
+    }
+}
+
+fn open_config_in_editor() {
     if let Ok(home) = env::var("HOME") {
         let config_path = format!("{}/.config/lazydraft/lazydraft.json", home);
-        // Get the value of the $EDITOR environment variable
-        let editor = env::var("EDITOR").unwrap_or_else(|_| "nano".to_string()); // Default to 'nano' if $EDITOR is not set
-        let status = ProcessCommand::new(editor)
-            .arg(config_path)
+        let editor = env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
+        let status = std::process::Command::new(editor)
+            .arg(&config_path)
             .status()
             .expect("Failed to open file with editor");
 
-        // Check if the editor exited successfully
         if status.success() {
             println!("Config edited successfully.");
         } else {
             eprintln!("Editor exited with an error.");
         }
     } else {
-        exit_with_message("HOME variable is not set");
+        eprintln!("HOME environment variable is not set.");
     }
+}
+
+fn display_config_info() {
+    println!(
+        r#"
+Configuration Options:
+
+  source_dir                Directory where source files are located.
+  source_asset_dir          Directory where assets for the source are stored.
+  target_dir                Directory where output files are generated.
+  target_asset_dir          Directory where output assets are stored.
+  target_asset_prefix       Prefix for asset links in the generated files.
+  target_hero_image_prefix  Prefix for hero image links in the output.
+  yaml_asset_prefix         Prefix for assets referenced in YAML frontmatter.
+  sanitize_frontmatter      If true, removes empty fields from the frontmatter.
+  auto_add_cover_img        Automatically adds a cover image to the frontmatter.
+  auto_add_hero_img         Automatically adds a hero image to the frontmatter.
+  remove_draft_on_stage     Sets the 'draft' flag to false when staging.
+  add_date_prefix           Adds a date prefix to the file name.
+  remove_wikilinks          Converts wiki-style links to plain markdown links.
+  trim_tags                 Strips a specified prefix from tags in frontmatter.
+  tag_prefix                The prefix to strip from tags when 'trim_tags' is enabled.
+
+Use `lazydraft config --edit` to modify these settings.
+"#
+    );
 }
 
 fn execute_stage_command(config: &Config, options: StageOptions) -> std::io::Result<()> {
@@ -163,10 +203,16 @@ fn execute_continuous_stage(config: &Config) -> std::io::Result<()> {
 
     // Watch the source directory
     watcher
-        .watch(Path::new(&config.source_dir.as_deref().unwrap_or_default()), RecursiveMode::Recursive)
+        .watch(
+            Path::new(&config.source_dir.as_deref().unwrap_or_default()),
+            RecursiveMode::Recursive,
+        )
         .expect("Failed to start watching directory");
 
-    println!("Watching for changes in: {}", config.source_dir.as_deref().unwrap_or_default());
+    println!(
+        "Watching for changes in: {}",
+        config.source_dir.as_deref().unwrap_or_default()
+    );
 
     let config = config.clone();
 
