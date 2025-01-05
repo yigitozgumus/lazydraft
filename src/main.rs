@@ -163,10 +163,10 @@ fn execute_continuous_stage(config: &Config) -> std::io::Result<()> {
 
     // Watch the source directory
     watcher
-        .watch(Path::new(&config.source_dir), RecursiveMode::Recursive)
+        .watch(Path::new(&config.source_dir.as_deref().unwrap_or_default()), RecursiveMode::Recursive)
         .expect("Failed to start watching directory");
 
-    println!("Watching for changes in: {}", config.source_dir);
+    println!("Watching for changes in: {}", config.source_dir.as_deref().unwrap_or_default());
 
     let config = config.clone();
 

@@ -87,16 +87,16 @@ pub fn update_writing_content_and_transfer(
     if let Ok((frontmatter, markdown_content)) = read_markdown_file(&writing.path) {
         let mut modifiable_frontmatter = frontmatter.clone();
 
-        if config.remove_draft_on_stage {
+        if config.remove_draft_on_stage.unwrap_or(false) {
             modifiable_frontmatter["draft"] = serde_yaml::to_value(false).expect("disable draft");
         }
-        if config.sanitize_frontmatter {
+        if config.sanitize_frontmatter.unwrap_or(false) {
             remove_empty_values(&mut modifiable_frontmatter);
         }
-        if config.auto_add_cover_img {
+        if config.auto_add_cover_img.unwrap_or(false) {
             add_cover_image(&mut modifiable_frontmatter, config, &asset_list);
         }
-        if config.auto_add_hero_img {
+        if config.auto_add_hero_img.unwrap_or(false) {
             add_hero_image(&mut modifiable_frontmatter, config, &asset_list);
         }
         if config.trim_tags.unwrap_or(false) {
@@ -106,13 +106,17 @@ pub fn update_writing_content_and_transfer(
             );
         }
         let mut updated_content = change_image_formats(markdown_content, config);
-        if config.remove_wikilinks {
+        if config.remove_wikilinks.unwrap_or(false) {
             updated_content = strip_wikilinks(updated_content.to_string());
         }
 
         let writing_name = create_writing_name(&mut modifiable_frontmatter, config, writing);
 
-        let target_file_name = Path::new(&config.target_dir).join(writing_name);
+        let target_dir = config
+            .target_dir
+            .as_ref()
+            .expect("target_dir should be set");
+        let target_file_name = Path::new(target_dir).join(writing_name);
         let merged_content = format!(
             "---\n{}\n{}",
             serde_yaml::to_string(&modifiable_frontmatter)
@@ -150,7 +154,11 @@ fn change_image_formats(content: String, config: &Config) -> String {
     pattern
         .replace_all(&content, |caps: &regex::Captures| {
             if let Some(link) = caps.get(1) {
-                format!("![]({}/{})", target_prefix, link.as_str())
+                format!(
+                    "![]({}/{})",
+                    target_prefix.as_deref().unwrap_or(""),
+                    link.as_str()
+                )
             } else {
                 caps.get(0).unwrap().as_str().to_string()
             }
@@ -187,7 +195,7 @@ fn create_writing_name(frontmatter: &mut Value, config: &Config, writing: &Writi
 
     let publish_date = frontmatter["publishDate"].as_str().unwrap_or("");
 
-    if config.add_date_prefix && !publish_date.is_empty() {
+    if config.add_date_prefix.unwrap_or(false) && !publish_date.is_empty() {
         let concatenation = format!("{}-{}", &publish_date, &writing_name).to_string();
         writing_name = concatenation;
     }
@@ -205,7 +213,10 @@ fn add_cover_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<As
         .filter(|asset| asset.asset_path.contains(&property_to_check))
         .collect();
     if !matching_assets.is_empty() {
-        let target_prefix = &config.target_asset_prefix;
+        let target_prefix = &config
+            .target_asset_prefix
+            .as_ref()
+            .expect("target asset prefix should be set");
         let header_name = Path::new(
             matching_assets
                 .first()
@@ -239,7 +250,10 @@ fn add_hero_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<Ass
         .filter(|asset| asset.asset_path.contains(&property_to_check))
         .collect();
     if !matching_assets.is_empty() {
-        let target_prefix = &config.target_hero_image_prefix;
+        let target_prefix = &config
+            .target_hero_image_prefix
+            .as_ref()
+            .expect("target hero image prefix should be set");
         let header_name = Path::new(
             matching_assets
                 .first()
@@ -305,7 +319,10 @@ pub fn read_markdown_file(
 }
 
 pub fn create_writing_list(config: &Config) -> Result<Vec<Writing>, Box<dyn std::error::Error>> {
-    let directory_path = &config.source_dir;
+    let directory_path = &config
+        .source_dir
+        .as_ref()
+        .expect("source dir should be set");
     let mut writings: Vec<Writing> = Vec::new();
 
     for entry in WalkDir::new(directory_path)
