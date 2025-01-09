@@ -53,26 +53,12 @@ jobs:
         id: extract_tag
         run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      - name: Cache Rust dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
-
-      - name: Sanitize environment
-        run: |
-          export HOME=/tmp/home
-          export CARGO_HOME=/tmp/cargo
-          RUSTFLAGS="-C debuginfo=0" cargo build --release
 
       - name: Build
         uses: actions-rs/cargo@v1
