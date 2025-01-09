@@ -3,6 +3,10 @@ name = "lazydraft"
 version = "3.1.10"
 edition = "2021"
 
+[profile.release]
+debug = 0       # Disable debug information
+panic = "abort"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

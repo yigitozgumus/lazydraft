@@ -3,13 +3,14 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 env:
   CARGO_TERM_COLOR: always
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   create-release:
@@ -52,12 +53,27 @@ jobs:
         id: extract_tag
         run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
+
+      - name: Sanitize environment
+        run: |
+          export HOME=/tmp/home
+          export CARGO_HOME=/tmp/cargo
+          export RUSTUP_HOME=/tmp/rustup
+          RUSTFLAGS="-C debuginfo=0" cargo build --release
 
       - name: Build
         uses: actions-rs/cargo@v1
@@ -105,8 +121,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         id: sha256
         run: |
-          curl -L -o lazydraft.tar.gz https://github.com/yigitozgumus/lazydraft/releases/download/${{ env.tag_name }}/lazydraft-macos-amd64.tar.gz
-          shasum -a 256 lazydraft.tar.gz | awk '{ print $1 }' > sha256.txt
+          shasum -a 256 target/${{ matrix.target }}/release/${{ matrix.asset_name }}.tar.gz | awk '{ print $1 }' > sha256.txt
           echo "::set-output name=sha256::$(cat sha256.txt)"
 
       - name: Clone Homebrew Tap
