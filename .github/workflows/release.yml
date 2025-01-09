@@ -72,7 +72,6 @@ jobs:
         run: |
           export HOME=/tmp/home
           export CARGO_HOME=/tmp/cargo
-          export RUSTUP_HOME=/tmp/rustup
           RUSTFLAGS="-C debuginfo=0" cargo build --release
 
       - name: Build
