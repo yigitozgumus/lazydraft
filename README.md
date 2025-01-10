@@ -29,7 +29,7 @@ Doing this once is manageable, but if I don't like something and change it, I no
 ### Using Homebrew (macOS/Linux)
 
 ```bash
-brew install yigitozgumus/tap/lazydraft
+brew install yigitozgumus/formulae/lazydraft
 ```
 
 ### Using Precompiled Binaries
