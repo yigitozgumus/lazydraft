@@ -101,7 +101,7 @@ lazydraft config
 
 Refer to the Configuration section for more details on setting up the `lazydraft.json` file.
 
-You also  can find more information in my accompanying [writing series](https://www.yigitozgumus.com/series/building-a-cli-in-rust/).
+You also  can find more information in my accompanying [writing series](https://www.yigitozgumus.com/series/lazydraft/).
 
 
 ## Configuration
