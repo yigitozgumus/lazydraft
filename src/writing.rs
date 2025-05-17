@@ -9,6 +9,7 @@ use crate::{
     config::{Config, HeroImage, Image},
 };
 use chrono::NaiveDate;
+use colored::*;
 use dialoguer::Select;
 use itertools::Itertools;
 use regex::Regex;
@@ -39,14 +40,43 @@ impl Writing {
 }
 
 pub fn print_writing_list(writings: Vec<Writing>) {
+    // Print table header (Publish Date comes after Status, Title is last)
+    println!(
+        "{:<5} {:<12} {:<12} {:<30}",
+        "#", "Status", "Publish Date", "Title"
+    );
+    println!("{}", "-".repeat(65));
+
+    let mut draft_count = 0;
+    let mut published_count = 0;
+
     for (index, writing) in writings.iter().enumerate() {
-        let draft = if writing.is_draft {
-            "Draft"
+        let status_colored = if writing.is_draft {
+            draft_count += 1;
+            "Draft".yellow()
         } else {
-            "Published"
+            published_count += 1;
+            "Published".green()
         };
-        println!("{} - ({}) {} ", index + 1, draft, writing.title);
+        let publish_date = writing
+            .publish_date
+            .map(|d| d.format("%Y-%m-%d").to_string())
+            .unwrap_or_else(|| "N/A".to_string());
+        println!(
+            "{:<5} {:<12} {:<12} {:<30}",
+            index + 1,
+            status_colored,
+            publish_date,
+            writing.title
+        );
     }
+    println!("{}", "-".repeat(65));
+    println!(
+        "Summary: {} draft(s), {} published writing(s)",
+        draft_count.to_string().yellow(),
+        published_count.to_string().green()
+    );
+    // The table format and colorization make it easier to scan the status of writings.
 }
 
 pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writing> {
