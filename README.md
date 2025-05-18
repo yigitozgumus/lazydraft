@@ -106,26 +106,23 @@ You also  can find more information in my accompanying [writing series](https://
 
 ## Configuration
 
-LazyDraft uses a JSON configuration file (lazydraft.json) to define project-specific settings.
+LazyDraft uses a TOML configuration file (lazydraft.toml) to define project-specific settings.
 
 ### Example Configuration
 
-```json
-{
-  "source_dir": "/source",
-  "source_asset_dir": "/source_asset",
-  "target_dir": "/target_dir",
-  "target_asset_dir": "/target_asset",
-  "target_asset_prefix": "./assets",
-  "yaml_asset_prefix": "assetPrefix",
-  "sanitize_frontmatter": true,
-  "auto_add_cover_img": true,
-  "remove_draft_on_stage": true,
-  "add_date_prefix":false,
-  "remove_wikilinks": true,
-  "use_mdx_format": false
-}
-
+```toml
+source_dir = "/source"
+source_asset_dir = "/source_asset"
+target_dir = "/target_dir"
+target_asset_dir = "/target_asset"
+target_asset_prefix = "./assets"
+yaml_asset_prefix = "assetPrefix"
+sanitize_frontmatter = true
+auto_add_cover_img = true
+remove_draft_on_stage = true
+add_date_prefix = false
+remove_wikilinks = true
+use_mdx_format = false
 ```
 
 ### How to Edit Configuration
@@ -136,7 +133,7 @@ Run the config command to interactively validate or update the configuration.
 lazydraft config
 ```
 
-This command will guide you through updating the lazydraft.json file.
+This command will guide you through updating the lazydraft.toml file.
 
 - `use_mdx_format`: If true, saves output files with the `.mdx` extension instead of `.md`.
 

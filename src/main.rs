@@ -120,7 +120,7 @@ pub fn execute_config_command(args: Vec<String>) {
 
 fn open_config_in_editor() {
     if let Ok(home) = env::var("HOME") {
-        let config_path = format!("{}/.config/lazydraft/lazydraft.json", home);
+        let config_path = format!("{}/.config/lazydraft/lazydraft.toml", home);
         let editor = env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
         let status = std::process::Command::new(editor)
             .arg(&config_path)

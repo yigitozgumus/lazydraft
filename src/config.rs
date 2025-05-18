@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::Write;
 use std::{env, fmt, fs::File, io::BufReader};
+use toml;
 
 use serde::{Deserialize, Serialize};
 
@@ -102,21 +103,63 @@ impl Config {
 
 pub fn validate_config() -> ConfigResult<Config> {
     if let Ok(home) = env::var("HOME") {
-        let config_path = format!("{}/.config/lazydraft/lazydraft.json", home);
+        let config_dir = format!("{}/.config/lazydraft", home);
+        let toml_path = format!("{}/lazydraft.toml", config_dir);
+        let json_path = format!("{}/lazydraft.json", config_dir);
 
-        if fs::metadata(&config_path).is_ok() {
-            // Read the JSON structure from the file
-            let file = File::open(&config_path)
+        // MIGRATION STEP: If TOML does not exist but JSON does, migrate
+        if !fs::metadata(&toml_path).is_ok() && fs::metadata(&json_path).is_ok() {
+            // Read JSON config
+            let file = File::open(&json_path)
+                .map_err(|err| format!("Failed to open JSON config for migration: {}", err))?;
+            let reader = BufReader::new(file);
+            let config: Config = match serde_json::from_reader(reader) {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    return Err(format!(
+                        "Failed to deserialize JSON during migration: {}",
+                        e
+                    ))
+                }
+            };
+            // Write TOML config
+            let serialized_toml = match toml::to_string_pretty(&config) {
+                Ok(content) => content,
+                Err(e) => return Err(format!("Failed to serialize TOML during migration: {}", e)),
+            };
+            if let Some(parent) = std::path::Path::new(&toml_path).parent() {
+                if !parent.exists() {
+                    if let Err(err) = fs::create_dir_all(parent) {
+                        return Err(format!("Failed to create directory: {}", err));
+                    }
+                }
+            }
+            let mut file = File::create(&toml_path)
+                .map_err(|e| format!("Failed to create TOML config during migration: {}", e))?;
+            file.write_all(serialized_toml.as_bytes())
+                .map_err(|e| format!("Failed to write TOML config during migration: {}", e))?;
+            // Optionally, remove or rename the old JSON file
+            let _ = fs::remove_file(&json_path);
+            println!("Migrated configuration from lazydraft.json to lazydraft.toml");
+        }
+
+        if fs::metadata(&toml_path).is_ok() {
+            // Read the TOML structure from the file
+            let file = File::open(&toml_path)
                 .map_err(|err| format!("Failed to open a config file: {}", err))?;
 
-            let reader = BufReader::new(file);
-
-            let config: Config = serde_json::from_reader(reader)
-                .map_err(|e| format!("Failed to deserialize JSON: {}", e))?;
+            let mut reader = BufReader::new(file);
+            let mut contents = String::new();
+            use std::io::Read;
+            reader
+                .read_to_string(&mut contents)
+                .map_err(|e| format!("Failed to read TOML: {}", e))?;
+            let config: Config = toml::from_str(&contents)
+                .map_err(|e| format!("Failed to deserialize TOML: {}", e))?;
             return Ok(config);
         }
 
-        if let Some(parent) = std::path::Path::new(&config_path).parent() {
+        if let Some(parent) = std::path::Path::new(&toml_path).parent() {
             if !parent.exists() {
                 if let Err(err) = fs::create_dir_all(parent) {
                     return Err(format!("Failed to create directory: {}", err));
@@ -124,7 +167,7 @@ pub fn validate_config() -> ConfigResult<Config> {
             }
         }
 
-        match File::create(&config_path) {
+        match File::create(&toml_path) {
             Ok(mut file) => {
                 let empty_config = Config {
                     source_dir: None,
@@ -145,15 +188,15 @@ pub fn validate_config() -> ConfigResult<Config> {
                     use_mdx_format: Some(false),
                 };
 
-                // Serialize the updated JSON structure
-                let serialized_empty_config = match serde_json::to_string_pretty(&empty_config) {
+                // Serialize the updated TOML structure
+                let serialized_empty_config = match toml::to_string_pretty(&empty_config) {
                     Ok(content) => content,
-                    Err(err) => return Err(format!("Failed to serialize JSON: {}", err)),
+                    Err(err) => return Err(format!("Failed to serialize TOML: {}", err)),
                 };
                 file.write_all(serialized_empty_config.as_bytes())
                     .map_err(|e| format!("Failed to initialize the config: {}", e))?;
 
-                println!("Config file is created successfully at {}", config_path);
+                println!("Config file is created successfully at {}", toml_path);
 
                 Ok(empty_config)
             }
