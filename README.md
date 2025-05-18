@@ -122,7 +122,8 @@ LazyDraft uses a JSON configuration file (lazydraft.json) to define project-spec
   "auto_add_cover_img": true,
   "remove_draft_on_stage": true,
   "add_date_prefix":false,
-  "remove_wikilinks": true
+  "remove_wikilinks": true,
+  "use_mdx_format": false
 }
 
 ```
@@ -136,6 +137,8 @@ lazydraft config
 ```
 
 This command will guide you through updating the lazydraft.json file.
+
+- `use_mdx_format`: If true, saves output files with the `.mdx` extension instead of `.md`.
 
 ## License
 

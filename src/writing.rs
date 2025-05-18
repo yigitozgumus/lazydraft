@@ -146,7 +146,18 @@ pub fn update_writing_content_and_transfer(
             .target_dir
             .as_ref()
             .expect("target_dir should be set");
-        let target_file_name = Path::new(target_dir).join(writing_name);
+        // Determine file extension based on config
+        let file_name = if config.use_mdx_format.unwrap_or(false) {
+            // Change extension to .mdx
+            let stem = Path::new(&writing_name)
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy();
+            format!("{}.mdx", stem)
+        } else {
+            writing_name.clone()
+        };
+        let target_file_name = Path::new(target_dir).join(file_name);
         let merged_content = format!(
             "---\n{}\n{}",
             serde_yaml::to_string(&modifiable_frontmatter)

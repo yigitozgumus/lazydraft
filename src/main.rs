@@ -157,6 +157,7 @@ Configuration Options:
   remove_wikilinks          Converts wiki-style links to plain markdown links.
   trim_tags                 Strips a specified prefix from tags in frontmatter.
   tag_prefix                The prefix to strip from tags when 'trim_tags' is enabled.
+  use_mdx_format            If true, saves output files with the .mdx extension instead of .md.
 
 Use `lazydraft config --edit` to modify these settings.
 "#

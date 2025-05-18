@@ -38,6 +38,8 @@ pub struct Config {
     pub trim_tags: Option<bool>,
     #[serde(default)]
     pub tag_prefix: Option<String>,
+    #[serde(default)]
+    pub use_mdx_format: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -140,6 +142,7 @@ pub fn validate_config() -> ConfigResult<Config> {
                     remove_wikilinks: Some(false),
                     trim_tags: Some(false),
                     tag_prefix: None,
+                    use_mdx_format: Some(false),
                 };
 
                 // Serialize the updated JSON structure
