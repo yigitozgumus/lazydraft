@@ -1,5 +1,8 @@
 use std::io;
 use std::time::{Duration, Instant};
+use std::sync::mpsc;
+use std::thread;
+use std::path::Path;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
@@ -15,14 +18,24 @@ use ratatui::{
     },
     Frame, Terminal,
 };
+use notify::{Watcher, RecursiveMode, RecommendedWatcher, Event as NotifyEvent, EventKind};
 
 use crate::config::{get_project_manager, ProjectConfig, ProjectManager};
-use crate::writing::{create_writing_list, Writing};
+use crate::writing::{create_writing_list, Writing, update_writing_content_and_transfer};
+use crate::asset::{get_asset_list_of_writing, transfer_asset_files};
 
 #[derive(Clone, PartialEq)]
 pub enum ViewMode {
     Projects,
     Writings,
+}
+
+#[derive(Clone, PartialEq)]
+pub enum PopupType {
+    None,
+    StageConfirm,
+    RevertConfirm,
+    OperationResult { success: bool, message: String },
 }
 
 pub struct Dashboard {
@@ -38,6 +51,11 @@ pub struct Dashboard {
     writings: Vec<Writing>,
     writings_list_state: ListState,
     selected_writings_index: usize,
+    popup_type: PopupType,
+    staged_writings: Vec<String>, // Track staged writing paths
+    file_watcher: Option<RecommendedWatcher>,
+    file_events_rx: Option<mpsc::Receiver<notify::Result<NotifyEvent>>>,
+    auto_stage_enabled: bool,
 }
 
 #[derive(Clone)]
@@ -68,6 +86,11 @@ impl Dashboard {
             writings: Vec::new(),
             writings_list_state: ListState::default(),
             selected_writings_index: 0,
+            popup_type: PopupType::None,
+            staged_writings: Vec::new(),
+            file_watcher: None,
+            file_events_rx: None,
+            auto_stage_enabled: true,
         };
         
         dashboard.update_project_stats()?;
@@ -211,6 +234,243 @@ impl Dashboard {
     fn switch_to_projects_view(&mut self) {
         self.view_mode = ViewMode::Projects;
     }
+    
+    fn show_stage_confirm_popup(&mut self) {
+        if self.view_mode == ViewMode::Writings && !self.writings.is_empty() {
+            if let Some(writing) = self.writings.get(self.selected_writings_index) {
+                if writing.is_draft && !self.staged_writings.contains(&writing.path) {
+                    self.popup_type = PopupType::StageConfirm;
+                }
+            }
+        }
+    }
+    
+    fn show_revert_confirm_popup(&mut self) {
+        if self.view_mode == ViewMode::Writings && !self.writings.is_empty() {
+            if let Some(writing) = self.writings.get(self.selected_writings_index) {
+                if self.staged_writings.contains(&writing.path) {
+                    self.popup_type = PopupType::RevertConfirm;
+                }
+            }
+        }
+    }
+    
+    fn stage_selected_writing(&mut self) -> Result<(), String> {
+        if let Some(writing) = self.writings.get(self.selected_writings_index).cloned() {
+            if let Some(project) = self.projects.get(self.selected_index) {
+                // Create asset list for the staging process
+                let asset_list = get_asset_list_of_writing(&writing, &project.config)
+                    .map_err(|e| format!("Failed to create asset list: {}", e))?;
+                
+                let asset_count = asset_list.len();
+                
+                // Stage the writing
+                match update_writing_content_and_transfer(&project.config, &writing, &asset_list) {
+                    Ok(_) => {
+                        // Also transfer assets
+                        let asset_result = if asset_count > 0 {
+                            match transfer_asset_files(&project.config, &asset_list) {
+                                Ok(_) => format!(" ({} assets transferred)", asset_count),
+                                Err(e) => format!(" (Warning: Asset transfer failed: {})", e),
+                            }
+                        } else {
+                            " (no assets found)".to_string()
+                        };
+                        
+                        // Add to staged writings and start watching
+                        let writing_path = writing.path.clone();
+                        let writing_title = writing.title.clone();
+                        self.staged_writings.push(writing_path.clone());
+                        if let Err(_) = self.add_file_to_watch(&writing_path) {
+                            // File watching failure is not critical, just continue
+                        }
+                        
+                        // Refresh the writings list to reflect any changes (like draft status)
+                        if let Err(_) = self.load_writings_for_selected_project() {
+                            // Refresh failure is not critical, just continue
+                        }
+                        
+                        self.popup_type = PopupType::OperationResult {
+                            success: true,
+                            message: format!("Successfully staged: {}{}", writing_title, asset_result),
+                        };
+                        Ok(())
+                    }
+                    Err(e) => {
+                        self.popup_type = PopupType::OperationResult {
+                            success: false,
+                            message: format!("Failed to stage: {}", e),
+                        };
+                        Err(format!("Staging failed: {}", e))
+                    }
+                }
+            } else {
+                Err("No project selected".to_string())
+            }
+        } else {
+            Err("No writing selected".to_string())
+        }
+    }
+    
+    fn revert_selected_writing(&mut self) -> Result<(), String> {
+        if let Some(writing) = self.writings.get(self.selected_writings_index).cloned() {
+            if let Some(pos) = self.staged_writings.iter().position(|x| x == &writing.path) {
+                // Remove from staged writings and stop watching
+                let writing_path = writing.path.clone();
+                let writing_title = writing.title.clone();
+                self.staged_writings.remove(pos);
+                if let Err(e) = self.remove_file_from_watch(&writing_path) {
+                    // Silently continue if we can't stop watching a specific file
+                }
+                
+                self.popup_type = PopupType::OperationResult {
+                    success: true,
+                    message: format!("Reverted staging for: {} (auto-staging disabled)", writing_title),
+                };
+                Ok(())
+            } else {
+                Err("Writing is not staged".to_string())
+            }
+        } else {
+            Err("No writing selected".to_string())
+        }
+    }
+    
+    fn close_popup(&mut self) {
+        self.popup_type = PopupType::None;
+    }
+    
+    fn start_file_watching(&mut self) -> Result<(), String> {
+        if self.file_watcher.is_some() {
+            return Ok(()); // Already watching
+        }
+        
+        let (tx, rx) = mpsc::channel();
+        
+        match RecommendedWatcher::new(tx, notify::Config::default()) {
+            Ok(mut watcher) => {
+                // Watch all staged writing files
+                for writing_path in &self.staged_writings {
+                    if let Err(_) = watcher.watch(Path::new(writing_path), RecursiveMode::NonRecursive) {
+                        // Silently continue if we can't watch a specific file
+                    }
+                }
+                
+                self.file_watcher = Some(watcher);
+                self.file_events_rx = Some(rx);
+                Ok(())
+            }
+            Err(e) => Err(format!("Failed to create file watcher: {}", e))
+        }
+    }
+    
+    fn add_file_to_watch(&mut self, file_path: &str) -> Result<(), String> {
+        if let Some(ref mut watcher) = self.file_watcher {
+            watcher.watch(Path::new(file_path), RecursiveMode::NonRecursive)
+                .map_err(|e| format!("Failed to watch file {}: {}", file_path, e))?;
+        } else {
+            // Start watching if not already started
+            self.start_file_watching()?;
+            if let Some(ref mut watcher) = self.file_watcher {
+                watcher.watch(Path::new(file_path), RecursiveMode::NonRecursive)
+                    .map_err(|e| format!("Failed to watch file {}: {}", file_path, e))?;
+            }
+        }
+        Ok(())
+    }
+    
+    fn remove_file_from_watch(&mut self, file_path: &str) -> Result<(), String> {
+        if let Some(ref mut watcher) = self.file_watcher {
+            watcher.unwatch(Path::new(file_path))
+                .map_err(|e| format!("Failed to unwatch file {}: {}", file_path, e))?;
+        }
+        Ok(())
+    }
+    
+    fn process_file_events(&mut self) {
+        let mut paths_to_restage = Vec::new();
+        
+        if let Some(ref rx) = self.file_events_rx {
+            while let Ok(event_result) = rx.try_recv() {
+                match event_result {
+                    Ok(event) => {
+                        match event.kind {
+                            EventKind::Modify(_) | EventKind::Create(_) => {
+                                if self.auto_stage_enabled {
+                                    for path in event.paths {
+                                        let path_str = path.to_string_lossy().to_string();
+                                        if self.staged_writings.contains(&path_str) {
+                                            paths_to_restage.push(path_str);
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    Err(_) => {
+                        // Silently ignore file watch errors to avoid breaking TUI
+                    }
+                }
+            }
+        }
+        
+        // Process the collected paths
+        for path_str in paths_to_restage {
+            self.auto_restage_writing(&path_str);
+        }
+    }
+    
+    fn auto_restage_writing(&mut self, file_path: &str) {
+        // Find the writing that matches this file path
+        if let Some(writing) = self.writings.iter().find(|w| w.path == file_path).cloned() {
+            if let Some(project) = self.projects.get(self.selected_index) {
+                // Auto-restage the writing
+                match get_asset_list_of_writing(&writing, &project.config) {
+                    Ok(asset_list) => {
+                        match update_writing_content_and_transfer(&project.config, &writing, &asset_list) {
+                            Ok(_) => {
+                                // Also transfer assets
+                                if let Err(_) = transfer_asset_files(&project.config, &asset_list) {
+                                    // Silently continue on asset transfer failure
+                                }
+                                
+                                // Refresh the writings list to reflect any changes
+                                if let Err(_) = self.load_writings_for_selected_project() {
+                                    // Silently continue on refresh failure
+                                }
+                                
+                                // Show brief success notification
+                                self.popup_type = PopupType::OperationResult {
+                                    success: true,
+                                    message: format!("Auto-staged: {}", writing.title),
+                                };
+                                // Auto-close the popup after a short time
+                                thread::spawn(move || {
+                                    thread::sleep(Duration::from_secs(2));
+                                });
+                            }
+                            Err(_) => {
+                                // Silently continue on staging failure
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        // Silently continue on asset list failure
+                    }
+                }
+            }
+        }
+    }
+    
+    fn toggle_auto_stage(&mut self) {
+        self.auto_stage_enabled = !self.auto_stage_enabled;
+        let status = if self.auto_stage_enabled { "enabled" } else { "disabled" };
+        self.popup_type = PopupType::OperationResult {
+            success: true,
+            message: format!("Auto-staging {}", status),
+        };
+    }
 }
 
 pub fn run_dashboard() -> Result<(), Box<dyn std::error::Error>> {
@@ -247,21 +507,80 @@ fn run_app<B: Backend>(
     dashboard: &mut Dashboard,
 ) -> io::Result<()> {
     loop {
+        // Process file events for auto-staging
+        dashboard.process_file_events();
+        
         terminal.draw(|f| ui(f, dashboard))?;
         
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
+                    // Handle popup interactions first
+                    match &dashboard.popup_type {
+                        PopupType::StageConfirm => {
+                            match key.code {
+                                KeyCode::Char('y') | KeyCode::Enter => {
+                                    if let Err(_) = dashboard.stage_selected_writing() {
+                                        // Error is already shown in popup, no need for eprintln
+                                    }
+                                }
+                                KeyCode::Char('n') | KeyCode::Esc => {
+                                    dashboard.close_popup();
+                                }
+                                _ => {}
+                            }
+                            continue;
+                        }
+                        PopupType::RevertConfirm => {
+                            match key.code {
+                                KeyCode::Char('y') | KeyCode::Enter => {
+                                    if let Err(_) = dashboard.revert_selected_writing() {
+                                        // Error is already shown in popup, no need for eprintln
+                                    }
+                                }
+                                KeyCode::Char('n') | KeyCode::Esc => {
+                                    dashboard.close_popup();
+                                }
+                                _ => {}
+                            }
+                            continue;
+                        }
+                        PopupType::OperationResult { .. } => {
+                            match key.code {
+                                KeyCode::Enter | KeyCode::Esc | KeyCode::Char(' ') => {
+                                    dashboard.close_popup();
+                                }
+                                _ => {}
+                            }
+                            continue;
+                        }
+                        PopupType::None => {
+                            // Handle normal navigation
+                        }
+                    }
+                    
+                    // Normal event handling when no popup is active
                     match key.code {
                         KeyCode::Char('q') | KeyCode::Esc => return Ok(()),
                         KeyCode::Char('h') | KeyCode::F(1) => {
                             dashboard.show_help = !dashboard.show_help;
                         }
                         KeyCode::Char('r') | KeyCode::F(5) => {
-                            if let Err(e) = dashboard.refresh_data() {
-                                // Could show error in UI, for now just continue
-                                eprintln!("Refresh error: {}", e);
+                            if let Err(_) = dashboard.refresh_data() {
+                                // Silently continue on refresh error
                             }
+                        }
+                        KeyCode::Char('s') => {
+                            // Stage operation
+                            dashboard.show_stage_confirm_popup();
+                        }
+                        KeyCode::Char('u') => {
+                            // Revert/undo staging operation (changed from 'r' to avoid conflict with refresh)
+                            dashboard.show_revert_confirm_popup();
+                        }
+                        KeyCode::Char('a') => {
+                            // Toggle auto-staging
+                            dashboard.toggle_auto_stage();
                         }
                         KeyCode::Down | KeyCode::Char('j') => {
                             match dashboard.view_mode {
@@ -277,8 +596,8 @@ fn run_app<B: Backend>(
                         }
                         KeyCode::Right => {
                             if dashboard.view_mode == ViewMode::Projects {
-                                if let Err(e) = dashboard.switch_to_writings_view() {
-                                    eprintln!("Error switching to writings view: {}", e);
+                                if let Err(_) = dashboard.switch_to_writings_view() {
+                                    // Silently continue on view switch error
                                 }
                             }
                         }
@@ -289,8 +608,8 @@ fn run_app<B: Backend>(
                         }
                         KeyCode::Enter | KeyCode::Char(' ') => {
                             if dashboard.view_mode == ViewMode::Projects {
-                                if let Err(e) = dashboard.switch_to_selected_project() {
-                                    eprintln!("Switch error: {}", e);
+                                if let Err(_) = dashboard.switch_to_selected_project() {
+                                    // Silently continue on project switch error
                                 }
                             }
                         }
@@ -302,8 +621,8 @@ fn run_app<B: Backend>(
         
         // Auto-refresh every 30 seconds
         if dashboard.last_update.elapsed() > Duration::from_secs(30) {
-            if let Err(e) = dashboard.refresh_data() {
-                eprintln!("Auto-refresh error: {}", e);
+            if let Err(_) = dashboard.refresh_data() {
+                // Silently continue on auto-refresh error
             }
         }
     }
@@ -315,7 +634,7 @@ fn ui(f: &mut Frame, dashboard: &Dashboard) {
         return;
     }
     
-    let size = f.area();
+    let size = f.size();
     
     // Main layout
     let chunks = Layout::default()
@@ -353,6 +672,14 @@ fn ui(f: &mut Frame, dashboard: &Dashboard) {
     
     // Footer
     draw_footer(f, chunks[2], &dashboard.view_mode);
+    
+    // Render popup if active
+    match &dashboard.popup_type {
+        PopupType::StageConfirm => draw_stage_confirm_popup(f),
+        PopupType::RevertConfirm => draw_revert_confirm_popup(f),
+        PopupType::OperationResult { success, message } => draw_operation_result_popup(f, *success, message),
+        PopupType::None => {}
+    }
 }
 
 fn draw_projects_view(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
@@ -459,19 +786,29 @@ fn draw_writings_list(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
     let items: Vec<ListItem> = dashboard
         .writings
         .iter()
-        .enumerate()
-        .map(|(i, writing)| {
-            let status_indicator = if writing.is_draft { "📝" } else { "✅" };
+        .map(|writing| {
+            let status_icon = if writing.is_draft { "📝" } else { "✅" };
             let status_color = if writing.is_draft { Color::Yellow } else { Color::Green };
+            
+            // Check if writing is staged and show auto-staging status
+            let staged_indicator = if dashboard.staged_writings.contains(&writing.path) {
+                if dashboard.auto_stage_enabled {
+                    " 🚀⚡" // Staged with auto-staging
+                } else {
+                    " 🚀" // Staged without auto-staging
+                }
+            } else {
+                ""
+            };
             
             let line = Line::from(vec![
                 Span::styled(
-                    format!("{} ", status_indicator),
+                    format!("{} {}", status_icon, writing.title),
                     Style::default().fg(status_color)
                 ),
                 Span::styled(
-                    &writing.title,
-                    Style::default().fg(Color::White)
+                    staged_indicator,
+                    Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
                 ),
             ]);
             
@@ -480,11 +817,15 @@ fn draw_writings_list(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
         .collect();
     
     let writings_count = dashboard.writings.len();
-    let draft_count = dashboard.writings.iter().filter(|w| w.is_draft).count();
-    let published_count = writings_count - draft_count;
+    let staged_count = dashboard.staged_writings.len();
+    let auto_stage_status = if dashboard.auto_stage_enabled { "ON" } else { "OFF" };
     
-    let title = format!("Writings ({} total, {} drafts, {} published)", 
-                       writings_count, draft_count, published_count);
+    let title = if staged_count > 0 {
+        format!("Writings ({} total, {} staged, auto-stage: {})", 
+                writings_count, staged_count, auto_stage_status)
+    } else {
+        format!("Writings ({} total)", writings_count)
+    };
     
     let writings_list = List::new(items)
         .block(
@@ -703,65 +1044,71 @@ fn draw_overall_stats(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
 
 fn draw_footer(f: &mut Frame, area: Rect, view_mode: &ViewMode) {
     let footer_text = match view_mode {
-        ViewMode::Projects => "↑↓/jk: Navigate | →: View Writings | Enter/Space: Switch Project | r/F5: Refresh | h/F1: Help | q/Esc: Quit",
-        ViewMode::Writings => "↑↓/jk: Navigate | ←: Back to Projects | r/F5: Refresh | h/F1: Help | q/Esc: Quit",
+        ViewMode::Projects => "q: Quit | h: Help | r: Refresh | ↑↓: Navigate | →: View Writings | Enter: Switch Project",
+        ViewMode::Writings => "q: Quit | h: Help | r: Refresh | ↑↓: Navigate | ←: Back | s: Stage | u: Revert | a: Toggle Auto-stage",
     };
+    
     let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Gray))
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
-    
     f.render_widget(footer, area);
 }
 
 fn draw_help_popup(f: &mut Frame) {
-    let area = centered_rect(60, 70, f.area());
+    let area = centered_rect(70, 60, f.size());
     
-    let help_text = Text::from(vec![
-        Line::from(vec![
-            Span::styled("LazyDraft Dashboard Help", Style::default().add_modifier(Modifier::BOLD)),
-        ]),
+    // Clear the area
+    f.render_widget(Clear, area);
+    
+    let help_text = vec![
+        Line::from("LazyDraft Dashboard Help"),
         Line::from(""),
         Line::from("Navigation:"),
-        Line::from("  ↑↓ or j/k    - Move up/down in current list"),
-        Line::from("  → (Right)    - Switch to writings view (from projects)"),
-        Line::from("  ← (Left)     - Back to projects view (from writings)"),
-        Line::from("  Enter/Space  - Switch to selected project"),
+        Line::from("  ↑/↓ or j/k    Navigate up/down"),
+        Line::from("  ←/→           Switch between views"),
+        Line::from("  Enter/Space   Switch to selected project"),
         Line::from(""),
-        Line::from("Actions:"),
-        Line::from("  r or F5      - Refresh project data"),
-        Line::from("  h or F1      - Toggle this help"),
-        Line::from("  q or Esc     - Quit dashboard"),
+        Line::from("Operations:"),
+        Line::from("  s             Stage selected writing (Writings view)"),
+        Line::from("  u             Revert/undo staging (Writings view)"),
+        Line::from("  a             Toggle auto-staging (Writings view)"),
+        Line::from("  r/F5          Refresh data"),
         Line::from(""),
-        Line::from("Views:"),
-        Line::from("  Projects     - Manage and switch between projects"),
-        Line::from("  Writings     - View all writings in selected project"),
-        Line::from("                 📝 Yellow = Draft, ✅ Green = Published"),
+        Line::from("Auto-staging:"),
+        Line::from("  When enabled, staged writings are automatically"),
+        Line::from("  re-staged when the source file is modified."),
+        Line::from("  File watching continues until you exit LazyDraft."),
         Line::from(""),
-        Line::from("Features:"),
-        Line::from("  • Real-time project status"),
-        Line::from("  • Draft count tracking"),
-        Line::from("  • Quick project switching"),
-        Line::from("  • Writing status overview"),
-        Line::from("  • Auto-refresh every 30s"),
+        Line::from("General:"),
+        Line::from("  h/F1          Toggle this help"),
+        Line::from("  q/Esc         Quit application"),
         Line::from(""),
-        Line::from("Press h or F1 to close this help"),
-    ]);
+        Line::from("Indicators:"),
+        Line::from("  ●             Active project"),
+        Line::from("  ⚠             Unconfigured project"),
+        Line::from("  📝            Draft writing"),
+        Line::from("  ✅            Published writing"),
+        Line::from("  🚀            Staged writing (auto-staging enabled)"),
+        Line::from(""),
+        Line::from("Press h or Esc to close this help"),
+    ];
     
-    let help_popup = Paragraph::new(help_text)
+    let help_paragraph = Paragraph::new(help_text)
+        .style(Style::default().fg(Color::White))
         .block(
             Block::default()
                 .title("Help")
                 .borders(Borders::ALL)
-                .style(Style::default().bg(Color::Black))
+                .border_style(Style::default().fg(Color::Cyan))
         )
         .wrap(Wrap { trim: true });
     
-    f.render_widget(Clear, area);
-    f.render_widget(help_popup, area);
+    f.render_widget(help_paragraph, area);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    // Cut the given rectangle into three vertical pieces
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -770,7 +1117,8 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_y) / 2),
         ])
         .split(r);
-    
+
+    // Then cut the middle vertical piece into three width-wise pieces
     Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -778,7 +1126,75 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage(percent_x),
             Constraint::Percentage((100 - percent_x) / 2),
         ])
-        .split(popup_layout[1])[1]
+        .split(popup_layout[1])[1] // Return the middle chunk
+}
+
+fn draw_stage_confirm_popup(f: &mut Frame) {
+    let area = centered_rect(50, 25, f.size());
+    
+    // Clear the area
+    f.render_widget(Clear, area);
+    
+    let popup = Paragraph::new("Stage this writing?\n\nThis will transfer the content to the target location.\n\ny: Yes | n: No")
+        .style(Style::default().fg(Color::White))
+        .alignment(Alignment::Center)
+        .block(
+            Block::default()
+                .title("Stage Writing")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow))
+        )
+        .wrap(Wrap { trim: true });
+    
+    f.render_widget(popup, area);
+}
+
+fn draw_revert_confirm_popup(f: &mut Frame) {
+    let area = centered_rect(50, 25, f.size());
+    
+    // Clear the area
+    f.render_widget(Clear, area);
+    
+    let popup = Paragraph::new("Revert staging for this writing?\n\nThis will remove it from the staged list.\n\ny: Yes | n: No")
+        .style(Style::default().fg(Color::White))
+        .alignment(Alignment::Center)
+        .block(
+            Block::default()
+                .title("Revert Staging")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Red))
+        )
+        .wrap(Wrap { trim: true });
+    
+    f.render_widget(popup, area);
+}
+
+fn draw_operation_result_popup(f: &mut Frame, success: bool, message: &str) {
+    let area = centered_rect(60, 20, f.size());
+    
+    // Clear the area
+    f.render_widget(Clear, area);
+    
+    let (title, border_color, text_color) = if success {
+        ("Success", Color::Green, Color::White)
+    } else {
+        ("Error", Color::Red, Color::White)
+    };
+    
+    let popup_text = format!("{}\n\nPress Enter to continue", message);
+    
+    let popup = Paragraph::new(popup_text)
+        .style(Style::default().fg(text_color))
+        .alignment(Alignment::Center)
+        .block(
+            Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(border_color))
+        )
+        .wrap(Wrap { trim: true });
+    
+    f.render_widget(popup, area);
 }
 
 fn format_relative_time(timestamp: &str) -> String {

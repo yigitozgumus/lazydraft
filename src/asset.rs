@@ -21,8 +21,15 @@ pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> io::Resu
     if writing_prefix.is_empty() {
         return Ok(Vec::new());
     }
+    
+    // Use expanded source asset directory
+    let source_asset_dir = config.get_source_asset_dir().unwrap_or_default();
+    if source_asset_dir.is_empty() {
+        return Ok(Vec::new());
+    }
+    
     let mut asset_list: Vec<Asset> = Vec::new();
-    for asset in WalkDir::new(&config.source_asset_dir.as_deref().unwrap_or_default())
+    for asset in WalkDir::new(&source_asset_dir)
         .into_iter()
         .filter_map(|e| e.ok())
     {
@@ -36,31 +43,30 @@ pub fn get_asset_list_of_writing(writing: &Writing, config: &Config) -> io::Resu
             }
         }
     }
-    if asset_list.is_empty() {
-        Ok(Vec::new())
-    } else {
-        Ok(asset_list)
-    }
+    Ok(asset_list)
 }
 
 pub fn transfer_asset_files(config: &Config, asset_list: &Vec<Asset>) -> io::Result<()> {
     if asset_list.is_empty() {
-        println!("No asset file found.");
         return Ok(());
     }
+    
+    // Use expanded target asset directory
+    let target_asset_dir = config.get_target_asset_dir().unwrap_or_default();
+    if target_asset_dir.is_empty() {
+        return Ok(());
+    }
+    
+    // Ensure target asset directory exists
+    fs::create_dir_all(&target_asset_dir)?;
+    
     for asset in asset_list {
         let path = Path::new(&asset.asset_path);
         let file_name = path.file_name().unwrap();
         if path.is_file() {
-            let destination_path =
-                PathBuf::from(&config.target_asset_dir.as_deref().unwrap_or_default())
-                    .join(file_name);
-            match fs::copy(path, destination_path) {
-                Ok(_) => {}
-                Err(err) => eprintln!("Error copying file: {}", err),
-            }
+            let destination_path = PathBuf::from(&target_asset_dir).join(file_name);
+            fs::copy(path, destination_path)?;
         }
     }
-    println!("Asset files are copied successfully.");
     Ok(())
 }

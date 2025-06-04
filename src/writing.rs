@@ -16,7 +16,7 @@ use regex::Regex;
 use serde_yaml::Value;
 use walkdir::WalkDir;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Writing {
     pub path: String,
     pub title: String,
@@ -143,9 +143,8 @@ pub fn update_writing_content_and_transfer(
         let writing_name = create_writing_name(&mut modifiable_frontmatter, config, writing);
 
         let target_dir = config
-            .target_dir
-            .as_ref()
-            .expect("target_dir should be set");
+            .get_target_dir()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "target_dir should be set"))?;
         // Determine file extension based on config
         let file_name = if config.use_mdx_format.unwrap_or(false) {
             // Change extension to .mdx
@@ -157,14 +156,20 @@ pub fn update_writing_content_and_transfer(
         } else {
             writing_name.clone()
         };
-        let target_file_name = Path::new(target_dir).join(file_name);
+        let target_file_name = Path::new(&target_dir).join(file_name);
+        
+        // Ensure target directory exists
+        if let Some(parent_dir) = target_file_name.parent() {
+            fs::create_dir_all(parent_dir)?;
+        }
+        
         let merged_content = format!(
             "---\n{}\n{}",
             serde_yaml::to_string(&modifiable_frontmatter)
                 .expect("frontmatter format should be correct after modification"),
             updated_content
         );
-        let mut new_file = File::create(target_file_name).expect("Could not create target file");
+        let mut new_file = File::create(target_file_name)?;
         new_file.write_all(merged_content.as_bytes())
     } else {
         Err(io::Error::new(io::ErrorKind::Other, "Cannot read writing."))
