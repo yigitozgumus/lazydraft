@@ -291,14 +291,14 @@ fn execute_continuous_stage(config: &Config) -> std::io::Result<()> {
     // Watch the source directory
     watcher
         .watch(
-            Path::new(&config.source_dir.as_deref().unwrap_or_default()),
+            Path::new(&config.get_source_dir().unwrap_or_default()),
             RecursiveMode::Recursive,
         )
         .expect("Failed to start watching directory");
 
     println!(
         "Watching for changes in: {}",
-        config.source_dir.as_deref().unwrap_or_default()
+        config.get_source_dir().unwrap_or_default()
     );
 
     let config = config.clone();
@@ -365,8 +365,8 @@ fn execute_project_command(cmd: ProjectCommand) -> Result<(), String> {
                 let is_active = active_project.as_ref() == Some(&project.name);
                 let marker = if is_active { "●" } else { " " };
                 
-                let source = project.config.source_dir.as_deref().unwrap_or("not set");
-                let target = project.config.target_dir.as_deref().unwrap_or("not set");
+                let source = project.config.get_source_dir().unwrap_or_else(|| "not set".to_string());
+                let target = project.config.get_target_dir().unwrap_or_else(|| "not set".to_string());
                 
                 println!("  {} {}", marker, project.name);
                 if let Some(desc) = &project.description {
@@ -465,10 +465,10 @@ fn format_timestamp(timestamp: &str) -> String {
 }
 
 fn print_config_summary(config: &Config) {
-    println!("  Source: {}", config.source_dir.as_deref().unwrap_or("not set"));
-    println!("  Target: {}", config.target_dir.as_deref().unwrap_or("not set"));
-    println!("  Source Assets: {}", config.source_asset_dir.as_deref().unwrap_or("not set"));
-    println!("  Target Assets: {}", config.target_asset_dir.as_deref().unwrap_or("not set"));
+    println!("  Source: {}", config.get_source_dir().unwrap_or_else(|| "not set".to_string()));
+    println!("  Target: {}", config.get_target_dir().unwrap_or_else(|| "not set".to_string()));
+    println!("  Source Assets: {}", config.get_source_asset_dir().unwrap_or_else(|| "not set".to_string()));
+    println!("  Target Assets: {}", config.get_target_asset_dir().unwrap_or_else(|| "not set".to_string()));
     
     let mut features = Vec::new();
     if config.sanitize_frontmatter.unwrap_or(false) { features.push("sanitize frontmatter"); }

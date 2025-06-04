@@ -360,13 +360,12 @@ pub fn read_markdown_file(
 }
 
 pub fn create_writing_list(config: &Config) -> Result<Vec<Writing>, Box<dyn std::error::Error>> {
-    let directory_path = &config
-        .source_dir
-        .as_ref()
-        .expect("source dir should be set");
+    let directory_path = config
+        .get_source_dir()
+        .ok_or("source dir should be set")?;
     let mut writings: Vec<Writing> = Vec::new();
 
-    for entry in WalkDir::new(directory_path)
+    for entry in WalkDir::new(&directory_path)
         .into_iter()
         .filter_map(|e| e.ok())
     {

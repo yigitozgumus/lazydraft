@@ -69,7 +69,7 @@ impl Dashboard {
             let is_active = self.active_project.as_ref() == Some(&project.name);
             
             // Count drafts and total files - handle incomplete configs gracefully
-            let (draft_count, total_files) = if project.config.source_dir.is_some() {
+            let (draft_count, total_files) = if project.config.get_source_dir().is_some() {
                 match create_writing_list(&project.config) {
                     Ok(writings) => {
                         let drafts = writings.iter().filter(|w| w.is_draft).count();
@@ -282,7 +282,7 @@ fn draw_projects_list(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
         .enumerate()
         .map(|(i, stats)| {
             let project = &dashboard.projects[i];
-            let is_configured = project.config.source_dir.is_some() && project.config.target_dir.is_some();
+            let is_configured = project.config.get_source_dir().is_some() && project.config.get_target_dir().is_some();
             
             let indicator = if stats.is_active { "●" } else { " " };
             let config_indicator = if !is_configured { " ⚠" } else { "" };
@@ -363,7 +363,7 @@ fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
         ]);
         
         // Check if project is configured
-        let is_configured = project.config.source_dir.is_some() && project.config.target_dir.is_some();
+        let is_configured = project.config.get_source_dir().is_some() && project.config.get_target_dir().is_some();
         
         if is_configured {
             lines.extend(vec![
@@ -389,11 +389,11 @@ fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Source: ", Style::default().add_modifier(Modifier::BOLD)),
-                    Span::raw(project.config.source_dir.as_deref().unwrap_or("not set")),
+                    Span::raw(project.config.get_source_dir().unwrap_or_else(|| "not set".to_string())),
                 ]),
                 Line::from(vec![
                     Span::styled("Target: ", Style::default().add_modifier(Modifier::BOLD)),
-                    Span::raw(project.config.target_dir.as_deref().unwrap_or("not set")),
+                    Span::raw(project.config.get_target_dir().unwrap_or_else(|| "not set".to_string())),
                 ]),
             ]);
         } else {

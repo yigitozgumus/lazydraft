@@ -7,6 +7,16 @@ use serde::{Deserialize, Serialize};
 
 pub type ConfigResult<T> = Result<T, String>;
 
+// Helper function to expand tilde in paths
+fn expand_tilde(path: &str) -> String {
+    if path.starts_with("~/") {
+        if let Ok(home) = env::var("HOME") {
+            return path.replacen("~", &home, 1);
+        }
+    }
+    path.to_string()
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
     #[serde(default)]
@@ -79,6 +89,23 @@ pub struct HeroImage {
 }
 
 impl Config {
+    // Helper methods to get expanded paths
+    pub fn get_source_dir(&self) -> Option<String> {
+        self.source_dir.as_ref().map(|s| expand_tilde(s))
+    }
+    
+    pub fn get_source_asset_dir(&self) -> Option<String> {
+        self.source_asset_dir.as_ref().map(|s| expand_tilde(s))
+    }
+    
+    pub fn get_target_dir(&self) -> Option<String> {
+        self.target_dir.as_ref().map(|s| expand_tilde(s))
+    }
+    
+    pub fn get_target_asset_dir(&self) -> Option<String> {
+        self.target_asset_dir.as_ref().map(|s| expand_tilde(s))
+    }
+
     // Method to check if any fields are empty
     pub fn has_empty_fields(&self) -> Option<String> {
         if self.source_dir.as_ref().map_or(true, |s| s.is_empty()) {
@@ -106,7 +133,7 @@ impl Config {
             .as_ref()
             .map_or(true, |s| s.is_empty())
         {
-            return Some("target_asset_dir".to_string());
+            return Some("target_asset_prefix".to_string());
         }
         if self
             .yaml_asset_prefix
