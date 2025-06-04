@@ -17,7 +17,13 @@ use ratatui::{
 };
 
 use crate::config::{get_project_manager, ProjectConfig, ProjectManager};
-use crate::writing::create_writing_list;
+use crate::writing::{create_writing_list, Writing};
+
+#[derive(Clone, PartialEq)]
+pub enum ViewMode {
+    Projects,
+    Writings,
+}
 
 pub struct Dashboard {
     project_manager: ProjectManager,
@@ -28,6 +34,10 @@ pub struct Dashboard {
     show_help: bool,
     last_update: Instant,
     project_stats: Vec<ProjectStats>,
+    view_mode: ViewMode,
+    writings: Vec<Writing>,
+    writings_list_state: ListState,
+    selected_writings_index: usize,
 }
 
 #[derive(Clone)]
@@ -54,6 +64,10 @@ impl Dashboard {
             show_help: false,
             last_update: Instant::now(),
             project_stats: Vec::new(),
+            view_mode: ViewMode::Projects,
+            writings: Vec::new(),
+            writings_list_state: ListState::default(),
+            selected_writings_index: 0,
         };
         
         dashboard.update_project_stats()?;
@@ -141,6 +155,62 @@ impl Dashboard {
         self.last_update = Instant::now();
         Ok(())
     }
+    
+    fn load_writings_for_selected_project(&mut self) -> Result<(), String> {
+        if let Some(project) = self.projects.get(self.selected_index) {
+            if project.config.get_source_dir().is_some() {
+                match create_writing_list(&project.config) {
+                    Ok(writings) => {
+                        self.writings = writings;
+                        self.selected_writings_index = 0;
+                        self.update_writings_selection();
+                    }
+                    Err(e) => {
+                        return Err(format!("Failed to load writings: {}", e));
+                    }
+                }
+            } else {
+                self.writings.clear();
+                return Err("Project not configured".to_string());
+            }
+        }
+        Ok(())
+    }
+    
+    fn update_writings_selection(&mut self) {
+        if !self.writings.is_empty() {
+            self.selected_writings_index = self.selected_writings_index.min(self.writings.len() - 1);
+            self.writings_list_state.select(Some(self.selected_writings_index));
+        }
+    }
+    
+    fn next_writing(&mut self) {
+        if !self.writings.is_empty() {
+            self.selected_writings_index = (self.selected_writings_index + 1) % self.writings.len();
+            self.update_writings_selection();
+        }
+    }
+    
+    fn previous_writing(&mut self) {
+        if !self.writings.is_empty() {
+            self.selected_writings_index = if self.selected_writings_index == 0 {
+                self.writings.len() - 1
+            } else {
+                self.selected_writings_index - 1
+            };
+            self.update_writings_selection();
+        }
+    }
+    
+    fn switch_to_writings_view(&mut self) -> Result<(), String> {
+        self.load_writings_for_selected_project()?;
+        self.view_mode = ViewMode::Writings;
+        Ok(())
+    }
+    
+    fn switch_to_projects_view(&mut self) {
+        self.view_mode = ViewMode::Projects;
+    }
 }
 
 pub fn run_dashboard() -> Result<(), Box<dyn std::error::Error>> {
@@ -194,14 +264,34 @@ fn run_app<B: Backend>(
                             }
                         }
                         KeyCode::Down | KeyCode::Char('j') => {
-                            dashboard.next_project();
+                            match dashboard.view_mode {
+                                ViewMode::Projects => dashboard.next_project(),
+                                ViewMode::Writings => dashboard.next_writing(),
+                            }
                         }
                         KeyCode::Up | KeyCode::Char('k') => {
-                            dashboard.previous_project();
+                            match dashboard.view_mode {
+                                ViewMode::Projects => dashboard.previous_project(),
+                                ViewMode::Writings => dashboard.previous_writing(),
+                            }
+                        }
+                        KeyCode::Right => {
+                            if dashboard.view_mode == ViewMode::Projects {
+                                if let Err(e) = dashboard.switch_to_writings_view() {
+                                    eprintln!("Error switching to writings view: {}", e);
+                                }
+                            }
+                        }
+                        KeyCode::Left => {
+                            if dashboard.view_mode == ViewMode::Writings {
+                                dashboard.switch_to_projects_view();
+                            }
                         }
                         KeyCode::Enter | KeyCode::Char(' ') => {
-                            if let Err(e) = dashboard.switch_to_selected_project() {
-                                eprintln!("Switch error: {}", e);
+                            if dashboard.view_mode == ViewMode::Projects {
+                                if let Err(e) = dashboard.switch_to_selected_project() {
+                                    eprintln!("Switch error: {}", e);
+                                }
                             }
                         }
                         _ => {}
@@ -238,12 +328,34 @@ fn ui(f: &mut Frame, dashboard: &Dashboard) {
         .split(size);
     
     // Header
-    let header = Paragraph::new("LazyDraft Dashboard")
+    let header_title = match dashboard.view_mode {
+        ViewMode::Projects => "LazyDraft Dashboard - Projects",
+        ViewMode::Writings => {
+            if let Some(project) = dashboard.projects.get(dashboard.selected_index) {
+                &format!("LazyDraft Dashboard - {} Writings", project.name)
+            } else {
+                "LazyDraft Dashboard - Writings"
+            }
+        }
+    };
+    
+    let header = Paragraph::new(header_title)
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(header, chunks[0]);
     
+    // Main content based on view mode
+    match dashboard.view_mode {
+        ViewMode::Projects => draw_projects_view(f, dashboard, chunks[1]),
+        ViewMode::Writings => draw_writings_view(f, dashboard, chunks[1]),
+    }
+    
+    // Footer
+    draw_footer(f, chunks[2], &dashboard.view_mode);
+}
+
+fn draw_projects_view(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
     // Main content layout
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -251,7 +363,7 @@ fn ui(f: &mut Frame, dashboard: &Dashboard) {
             Constraint::Percentage(50),  // Projects list
             Constraint::Percentage(50),  // Project details & stats
         ])
-        .split(chunks[1]);
+        .split(area);
     
     // Projects list
     draw_projects_list(f, dashboard, main_chunks[0]);
@@ -270,9 +382,6 @@ fn ui(f: &mut Frame, dashboard: &Dashboard) {
     
     // Overall stats
     draw_overall_stats(f, dashboard, right_chunks[1]);
-    
-    // Footer
-    draw_footer(f, chunks[2]);
 }
 
 fn draw_projects_list(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
@@ -327,6 +436,108 @@ fn draw_projects_list(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
         .highlight_symbol("▶ ");
     
     f.render_stateful_widget(projects_list, area, &mut dashboard.list_state.clone());
+}
+
+fn draw_writings_view(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
+    // Main content layout
+    let main_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(60),  // Writings list
+            Constraint::Percentage(40),  // Writing details
+        ])
+        .split(area);
+    
+    // Writings list
+    draw_writings_list(f, dashboard, main_chunks[0]);
+    
+    // Writing details
+    draw_writing_details(f, dashboard, main_chunks[1]);
+}
+
+fn draw_writings_list(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
+    let items: Vec<ListItem> = dashboard
+        .writings
+        .iter()
+        .enumerate()
+        .map(|(i, writing)| {
+            let status_indicator = if writing.is_draft { "📝" } else { "✅" };
+            let status_color = if writing.is_draft { Color::Yellow } else { Color::Green };
+            
+            let line = Line::from(vec![
+                Span::styled(
+                    format!("{} ", status_indicator),
+                    Style::default().fg(status_color)
+                ),
+                Span::styled(
+                    &writing.title,
+                    Style::default().fg(Color::White)
+                ),
+            ]);
+            
+            ListItem::new(line)
+        })
+        .collect();
+    
+    let writings_count = dashboard.writings.len();
+    let draft_count = dashboard.writings.iter().filter(|w| w.is_draft).count();
+    let published_count = writings_count - draft_count;
+    
+    let title = format!("Writings ({} total, {} drafts, {} published)", 
+                       writings_count, draft_count, published_count);
+    
+    let writings_list = List::new(items)
+        .block(
+            Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+        )
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD)
+        )
+        .highlight_symbol("▶ ");
+    
+    f.render_stateful_widget(writings_list, area, &mut dashboard.writings_list_state.clone());
+}
+
+fn draw_writing_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
+    let content = if let Some(writing) = dashboard.writings.get(dashboard.selected_writings_index) {
+        let status = if writing.is_draft { "Draft" } else { "Published" };
+        let status_color = if writing.is_draft { Color::Yellow } else { Color::Green };
+        
+        let lines = vec![
+            Line::from(vec![
+                Span::styled("Title: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(&writing.title),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled(status, Style::default().fg(status_color).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("Path: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(&writing.path),
+            ]),
+        ];
+        
+        Text::from(lines)
+    } else {
+        Text::from("No writing selected")
+    };
+    
+    let details = Paragraph::new(content)
+        .block(
+            Block::default()
+                .title("Writing Details")
+                .borders(Borders::ALL)
+        )
+        .wrap(Wrap { trim: true });
+    
+    f.render_widget(details, area);
 }
 
 fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
@@ -490,8 +701,11 @@ fn draw_overall_stats(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
     f.render_widget(stats, area);
 }
 
-fn draw_footer(f: &mut Frame, area: Rect) {
-    let footer_text = "↑↓/jk: Navigate | Enter/Space: Switch | r/F5: Refresh | h/F1: Help | q/Esc: Quit";
+fn draw_footer(f: &mut Frame, area: Rect, view_mode: &ViewMode) {
+    let footer_text = match view_mode {
+        ViewMode::Projects => "↑↓/jk: Navigate | →: View Writings | Enter/Space: Switch Project | r/F5: Refresh | h/F1: Help | q/Esc: Quit",
+        ViewMode::Writings => "↑↓/jk: Navigate | ←: Back to Projects | r/F5: Refresh | h/F1: Help | q/Esc: Quit",
+    };
     let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Gray))
         .alignment(Alignment::Center)
@@ -509,7 +723,9 @@ fn draw_help_popup(f: &mut Frame) {
         ]),
         Line::from(""),
         Line::from("Navigation:"),
-        Line::from("  ↑↓ or j/k    - Move up/down in project list"),
+        Line::from("  ↑↓ or j/k    - Move up/down in current list"),
+        Line::from("  → (Right)    - Switch to writings view (from projects)"),
+        Line::from("  ← (Left)     - Back to projects view (from writings)"),
         Line::from("  Enter/Space  - Switch to selected project"),
         Line::from(""),
         Line::from("Actions:"),
@@ -517,10 +733,16 @@ fn draw_help_popup(f: &mut Frame) {
         Line::from("  h or F1      - Toggle this help"),
         Line::from("  q or Esc     - Quit dashboard"),
         Line::from(""),
+        Line::from("Views:"),
+        Line::from("  Projects     - Manage and switch between projects"),
+        Line::from("  Writings     - View all writings in selected project"),
+        Line::from("                 📝 Yellow = Draft, ✅ Green = Published"),
+        Line::from(""),
         Line::from("Features:"),
         Line::from("  • Real-time project status"),
         Line::from("  • Draft count tracking"),
         Line::from("  • Quick project switching"),
+        Line::from("  • Writing status overview"),
         Line::from("  • Auto-refresh every 30s"),
         Line::from(""),
         Line::from("Press h or F1 to close this help"),
