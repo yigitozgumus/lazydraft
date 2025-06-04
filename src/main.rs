@@ -15,6 +15,7 @@ mod asset;
 mod command;
 mod config;
 mod writing;
+mod dashboard;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -64,6 +65,12 @@ fn main() {
                     Err(err) => exit_with_message(&err),
                 }
             }
+            Command::Dashboard => {
+                match dashboard::run_dashboard() {
+                    Ok(_) => {}
+                    Err(err) => exit_with_message(&format!("Dashboard error: {}", err)),
+                }
+            }
         },
         None => {
             if command_args.is_empty() {
@@ -102,6 +109,7 @@ Available Commands:
                  --edit: Open config file in editor.
                  --info: Display configuration help.
                  --project <name>: Edit specific project config.
+  dashboard    - Launch interactive project dashboard (TUI).
 
 Project Management:
   project list           - List all projects and show active project.
@@ -112,6 +120,7 @@ Project Management:
   project rename <old> <new> - Rename a project.
 
 Examples:
+  lazydraft dashboard
   lazydraft project create my-blog "Personal blog content"
   lazydraft project switch my-blog
   lazydraft status

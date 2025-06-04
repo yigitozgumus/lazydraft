@@ -7,6 +7,7 @@ pub enum Command {
     Config,
     Info,
     Project(ProjectCommand),
+    Dashboard,
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +34,7 @@ impl fmt::Display for Command {
             Command::Config => write!(f, "config"),
             Command::Info => write!(f, "info"),
             Command::Project(cmd) => write!(f, "project {}", cmd),
+            Command::Dashboard => write!(f, "dashboard"),
         }
     }
 }
@@ -76,6 +78,7 @@ pub fn parse_command(args: &[String]) -> Option<Command> {
         "config" => Some(Command::Config),
         "info" => Some(Command::Info),
         "project" => parse_project_command(&args[1..]),
+        "dashboard" => Some(Command::Dashboard),
         _ => None,
     }
 }
