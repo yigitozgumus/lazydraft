@@ -1,7 +1,7 @@
 use std::fs;
-use std::io::Write;
-use std::{env, fmt, fs::File, io::BufReader};
+use std::{env, fs::File, io::BufReader};
 use toml;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -41,6 +41,29 @@ pub struct Config {
     pub tag_prefix: Option<String>,
     #[serde(default)]
     pub use_mdx_format: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ProjectConfig {
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub last_used: Option<String>,
+    #[serde(flatten)]
+    pub config: Config,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ActiveProject {
+    pub name: String,
+}
+
+pub struct ProjectManager {
+    config_dir: PathBuf,
+    projects_dir: PathBuf,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -101,108 +124,251 @@ impl Config {
     }
 }
 
-pub fn validate_config() -> ConfigResult<Config> {
-    if let Ok(home) = env::var("HOME") {
-        let config_dir = format!("{}/.config/lazydraft", home);
-        let toml_path = format!("{}/lazydraft.toml", config_dir);
-        let json_path = format!("{}/lazydraft.json", config_dir);
-
-        // MIGRATION STEP: If TOML does not exist but JSON does, migrate
-        if !fs::metadata(&toml_path).is_ok() && fs::metadata(&json_path).is_ok() {
-            // Read JSON config
-            let file = File::open(&json_path)
-                .map_err(|err| format!("Failed to open JSON config for migration: {}", err))?;
-            let reader = BufReader::new(file);
-            let config: Config = match serde_json::from_reader(reader) {
-                Ok(cfg) => cfg,
-                Err(e) => {
-                    return Err(format!(
-                        "Failed to deserialize JSON during migration: {}",
-                        e
-                    ))
-                }
-            };
-            // Write TOML config
-            let serialized_toml = match toml::to_string_pretty(&config) {
-                Ok(content) => content,
-                Err(e) => return Err(format!("Failed to serialize TOML during migration: {}", e)),
-            };
-            if let Some(parent) = std::path::Path::new(&toml_path).parent() {
-                if !parent.exists() {
-                    if let Err(err) = fs::create_dir_all(parent) {
-                        return Err(format!("Failed to create directory: {}", err));
-                    }
-                }
-            }
-            let mut file = File::create(&toml_path)
-                .map_err(|e| format!("Failed to create TOML config during migration: {}", e))?;
-            file.write_all(serialized_toml.as_bytes())
-                .map_err(|e| format!("Failed to write TOML config during migration: {}", e))?;
-            // Optionally, remove or rename the old JSON file
-            let _ = fs::remove_file(&json_path);
-            println!("Migrated configuration from lazydraft.json to lazydraft.toml");
+impl ProjectConfig {
+    pub fn new(name: String, description: Option<String>) -> Self {
+        let now = chrono::Utc::now().to_rfc3339();
+        Self {
+            name,
+            description,
+            created_at: Some(now.clone()),
+            last_used: Some(now),
+            config: Config {
+                source_dir: None,
+                source_asset_dir: None,
+                target_dir: None,
+                target_asset_dir: None,
+                target_asset_prefix: None,
+                target_hero_image_prefix: None,
+                yaml_asset_prefix: None,
+                sanitize_frontmatter: Some(false),
+                auto_add_cover_img: Some(false),
+                auto_add_hero_img: Some(false),
+                remove_draft_on_stage: Some(false),
+                add_date_prefix: Some(false),
+                remove_wikilinks: Some(false),
+                trim_tags: Some(false),
+                tag_prefix: None,
+                use_mdx_format: Some(false),
+            },
         }
-
-        if fs::metadata(&toml_path).is_ok() {
-            // Read the TOML structure from the file
-            let file = File::open(&toml_path)
-                .map_err(|err| format!("Failed to open a config file: {}", err))?;
-
-            let mut reader = BufReader::new(file);
-            let mut contents = String::new();
-            use std::io::Read;
-            reader
-                .read_to_string(&mut contents)
-                .map_err(|e| format!("Failed to read TOML: {}", e))?;
-            let config: Config = toml::from_str(&contents)
-                .map_err(|e| format!("Failed to deserialize TOML: {}", e))?;
-            return Ok(config);
-        }
-
-        if let Some(parent) = std::path::Path::new(&toml_path).parent() {
-            if !parent.exists() {
-                if let Err(err) = fs::create_dir_all(parent) {
-                    return Err(format!("Failed to create directory: {}", err));
-                }
-            }
-        }
-
-        match File::create(&toml_path) {
-            Ok(mut file) => {
-                let empty_config = Config {
-                    source_dir: None,
-                    source_asset_dir: None,
-                    target_dir: None,
-                    target_asset_dir: None,
-                    target_asset_prefix: None,
-                    target_hero_image_prefix: None,
-                    yaml_asset_prefix: None,
-                    sanitize_frontmatter: Some(false),
-                    auto_add_cover_img: Some(false),
-                    auto_add_hero_img: Some(false),
-                    remove_draft_on_stage: Some(false),
-                    add_date_prefix: Some(false),
-                    remove_wikilinks: Some(false),
-                    trim_tags: Some(false),
-                    tag_prefix: None,
-                    use_mdx_format: Some(false),
-                };
-
-                // Serialize the updated TOML structure
-                let serialized_empty_config = match toml::to_string_pretty(&empty_config) {
-                    Ok(content) => content,
-                    Err(err) => return Err(format!("Failed to serialize TOML: {}", err)),
-                };
-                file.write_all(serialized_empty_config.as_bytes())
-                    .map_err(|e| format!("Failed to initialize the config: {}", e))?;
-
-                println!("Config file is created successfully at {}", toml_path);
-
-                Ok(empty_config)
-            }
-            Err(e) => Err(format!("Failed to create config file: {}", e)),
-        }
-    } else {
-        Err(String::from("Home environment variable not set"))
     }
+
+    pub fn update_last_used(&mut self) {
+        self.last_used = Some(chrono::Utc::now().to_rfc3339());
+    }
+}
+
+impl ProjectManager {
+    pub fn new() -> ConfigResult<Self> {
+        let home = env::var("HOME").map_err(|_| "HOME environment variable not set")?;
+        let config_dir = PathBuf::from(format!("{}/.config/lazydraft", home));
+        let projects_dir = config_dir.join("projects");
+
+        // Ensure directories exist
+        fs::create_dir_all(&config_dir)
+            .map_err(|e| format!("Failed to create config directory: {}", e))?;
+        fs::create_dir_all(&projects_dir)
+            .map_err(|e| format!("Failed to create projects directory: {}", e))?;
+
+        Ok(Self {
+            config_dir,
+            projects_dir,
+        })
+    }
+
+    pub fn list_projects(&self) -> ConfigResult<Vec<ProjectConfig>> {
+        let mut projects = Vec::new();
+        
+        if !self.projects_dir.exists() {
+            return Ok(projects);
+        }
+
+        let entries = fs::read_dir(&self.projects_dir)
+            .map_err(|e| format!("Failed to read projects directory: {}", e))?;
+
+        for entry in entries {
+            let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+            let path = entry.path();
+            
+            if path.extension().and_then(|s| s.to_str()) == Some("toml") {
+                match self.load_project_from_path(&path) {
+                    Ok(project) => projects.push(project),
+                    Err(e) => eprintln!("Warning: Failed to load project from {:?}: {}", path, e),
+                }
+            }
+        }
+
+        // Sort by last_used (most recent first)
+        projects.sort_by(|a, b| {
+            let a_time = a.last_used.as_deref().unwrap_or("");
+            let b_time = b.last_used.as_deref().unwrap_or("");
+            b_time.cmp(a_time)
+        });
+
+        Ok(projects)
+    }
+
+    pub fn create_project(&self, name: &str, description: Option<String>) -> ConfigResult<ProjectConfig> {
+        let project_path = self.projects_dir.join(format!("{}.toml", name));
+        
+        if project_path.exists() {
+            return Err(format!("Project '{}' already exists", name));
+        }
+
+        let project = ProjectConfig::new(name.to_string(), description);
+        self.save_project(&project)?;
+        Ok(project)
+    }
+
+    pub fn load_project(&self, name: &str) -> ConfigResult<ProjectConfig> {
+        let project_path = self.projects_dir.join(format!("{}.toml", name));
+        self.load_project_from_path(&project_path)
+    }
+
+    fn load_project_from_path(&self, path: &Path) -> ConfigResult<ProjectConfig> {
+        let contents = fs::read_to_string(path)
+            .map_err(|e| format!("Failed to read project file: {}", e))?;
+        
+        toml::from_str(&contents)
+            .map_err(|e| format!("Failed to parse project config: {}", e))
+    }
+
+    pub fn save_project(&self, project: &ProjectConfig) -> ConfigResult<()> {
+        let project_path = self.projects_dir.join(format!("{}.toml", project.name));
+        let contents = toml::to_string_pretty(project)
+            .map_err(|e| format!("Failed to serialize project config: {}", e))?;
+        
+        fs::write(&project_path, contents)
+            .map_err(|e| format!("Failed to write project file: {}", e))?;
+        
+        Ok(())
+    }
+
+    pub fn delete_project(&self, name: &str) -> ConfigResult<()> {
+        let project_path = self.projects_dir.join(format!("{}.toml", name));
+        
+        if !project_path.exists() {
+            return Err(format!("Project '{}' does not exist", name));
+        }
+
+        fs::remove_file(&project_path)
+            .map_err(|e| format!("Failed to delete project file: {}", e))?;
+        
+        Ok(())
+    }
+
+    pub fn get_active_project(&self) -> ConfigResult<Option<String>> {
+        let active_path = self.config_dir.join("active_project.toml");
+        
+        if !active_path.exists() {
+            return Ok(None);
+        }
+
+        let contents = fs::read_to_string(&active_path)
+            .map_err(|e| format!("Failed to read active project file: {}", e))?;
+        
+        let active: ActiveProject = toml::from_str(&contents)
+            .map_err(|e| format!("Failed to parse active project: {}", e))?;
+        
+        Ok(Some(active.name))
+    }
+
+    pub fn set_active_project(&self, name: &str) -> ConfigResult<()> {
+        // Verify project exists
+        self.load_project(name)?;
+        
+        let active = ActiveProject {
+            name: name.to_string(),
+        };
+        
+        let active_path = self.config_dir.join("active_project.toml");
+        let contents = toml::to_string_pretty(&active)
+            .map_err(|e| format!("Failed to serialize active project: {}", e))?;
+        
+        fs::write(&active_path, contents)
+            .map_err(|e| format!("Failed to write active project file: {}", e))?;
+        
+        Ok(())
+    }
+
+    pub fn migrate_legacy_config(&self) -> ConfigResult<Option<String>> {
+        let legacy_toml_path = self.config_dir.join("lazydraft.toml");
+        let legacy_json_path = self.config_dir.join("lazydraft.json");
+        
+        // Check if we have a legacy config to migrate
+        let legacy_config = if legacy_toml_path.exists() {
+            let contents = fs::read_to_string(&legacy_toml_path)
+                .map_err(|e| format!("Failed to read legacy TOML config: {}", e))?;
+            Some(toml::from_str::<Config>(&contents)
+                .map_err(|e| format!("Failed to parse legacy TOML config: {}", e))?)
+        } else if legacy_json_path.exists() {
+            let file = File::open(&legacy_json_path)
+                .map_err(|e| format!("Failed to open legacy JSON config: {}", e))?;
+            let reader = BufReader::new(file);
+            Some(serde_json::from_reader(reader)
+                .map_err(|e| format!("Failed to parse legacy JSON config: {}", e))?)
+        } else {
+            None
+        };
+
+        if let Some(config) = legacy_config {
+            let project_name = "default".to_string();
+            let mut project = ProjectConfig::new(
+                project_name.clone(),
+                Some("Migrated from legacy configuration".to_string())
+            );
+            project.config = config;
+            
+            self.save_project(&project)?;
+            self.set_active_project(&project_name)?;
+            
+            // Clean up legacy files
+            if legacy_toml_path.exists() {
+                let _ = fs::remove_file(&legacy_toml_path);
+            }
+            if legacy_json_path.exists() {
+                let _ = fs::remove_file(&legacy_json_path);
+            }
+            
+            println!("Migrated legacy configuration to project '{}'", project_name);
+            return Ok(Some(project_name));
+        }
+        
+        Ok(None)
+    }
+}
+
+pub fn validate_config() -> ConfigResult<Config> {
+    let project_manager = ProjectManager::new()?;
+    
+    // First, try to migrate any legacy config
+    project_manager.migrate_legacy_config()?;
+    
+    // Get active project or prompt for selection
+    let active_project_name = match project_manager.get_active_project()? {
+        Some(name) => name,
+        None => {
+            let projects = project_manager.list_projects()?;
+            if projects.is_empty() {
+                return Err("No projects found. Create a project with 'lazydraft project create <name>'".to_string());
+            } else if projects.len() == 1 {
+                let project_name = projects[0].name.clone();
+                project_manager.set_active_project(&project_name)?;
+                project_name
+            } else {
+                return Err("Multiple projects found but no active project set. Use 'lazydraft project switch <name>' to select a project".to_string());
+            }
+        }
+    };
+    
+    // Load and update the active project
+    let mut project = project_manager.load_project(&active_project_name)?;
+    project.update_last_used();
+    project_manager.save_project(&project)?;
+    
+    Ok(project.config)
+}
+
+pub fn get_project_manager() -> ConfigResult<ProjectManager> {
+    ProjectManager::new()
 }
