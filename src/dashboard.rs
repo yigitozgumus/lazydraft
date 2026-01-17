@@ -11,7 +11,7 @@ use crossterm::{
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{
         Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap,
@@ -21,6 +21,7 @@ use ratatui::{
 use notify::{Watcher, RecursiveMode, RecommendedWatcher, Event as NotifyEvent, EventKind};
 
 use crate::config::{get_project_manager, ProjectConfig, ProjectManager};
+use crate::tui::Theme;
 use crate::writing::{create_writing_list, Writing, update_writing_content_and_transfer};
 use crate::asset::{get_asset_list_of_writing, transfer_asset_files};
 
@@ -629,8 +630,9 @@ fn run_app<B: Backend>(
 }
 
 fn ui(f: &mut Frame, dashboard: &Dashboard) {
+    let theme = Theme::default();
     if dashboard.show_help {
-        draw_help_popup(f);
+        draw_help_popup(f, &theme);
         return;
     }
     
@@ -659,30 +661,36 @@ fn ui(f: &mut Frame, dashboard: &Dashboard) {
     };
     
     let header = Paragraph::new(header_title)
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(theme.header_style())
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(theme.border_style()),
+        );
     f.render_widget(header, chunks[0]);
     
     // Main content based on view mode
     match dashboard.view_mode {
-        ViewMode::Projects => draw_projects_view(f, dashboard, chunks[1]),
-        ViewMode::Writings => draw_writings_view(f, dashboard, chunks[1]),
+        ViewMode::Projects => draw_projects_view(f, dashboard, chunks[1], &theme),
+        ViewMode::Writings => draw_writings_view(f, dashboard, chunks[1], &theme),
     }
     
     // Footer
-    draw_footer(f, chunks[2], &dashboard.view_mode);
+    draw_footer(f, chunks[2], dashboard, &theme);
     
     // Render popup if active
     match &dashboard.popup_type {
-        PopupType::StageConfirm => draw_stage_confirm_popup(f),
-        PopupType::RevertConfirm => draw_revert_confirm_popup(f),
-        PopupType::OperationResult { success, message } => draw_operation_result_popup(f, *success, message),
+        PopupType::StageConfirm => draw_stage_confirm_popup(f, &theme),
+        PopupType::RevertConfirm => draw_revert_confirm_popup(f, &theme),
+        PopupType::OperationResult { success, message } => {
+            draw_operation_result_popup(f, *success, message, &theme)
+        }
         PopupType::None => {}
     }
 }
 
-fn draw_projects_view(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
+fn draw_projects_view(f: &mut Frame, dashboard: &Dashboard, area: Rect, theme: &Theme) {
     // Main content layout
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -693,7 +701,7 @@ fn draw_projects_view(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
         .split(area);
     
     // Projects list
-    draw_projects_list(f, dashboard, main_chunks[0]);
+    draw_projects_list(f, dashboard, main_chunks[0], theme);
     
     // Right panel layout
     let right_chunks = Layout::default()
@@ -705,67 +713,69 @@ fn draw_projects_view(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
         .split(main_chunks[1]);
     
     // Project details
-    draw_project_details(f, dashboard, right_chunks[0]);
+    draw_project_details(f, dashboard, right_chunks[0], theme);
     
     // Overall stats
-    draw_overall_stats(f, dashboard, right_chunks[1]);
+    draw_overall_stats(f, dashboard, right_chunks[1], theme);
 }
 
-fn draw_projects_list(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
-    let items: Vec<ListItem> = dashboard
-        .project_stats
-        .iter()
-        .enumerate()
-        .map(|(i, stats)| {
-            let project = &dashboard.projects[i];
-            let is_configured = project.config.get_source_dir().is_some() && project.config.get_target_dir().is_some();
-            
-            let indicator = if stats.is_active { "●" } else { " " };
-            let config_indicator = if !is_configured { " ⚠" } else { "" };
-            let draft_info = if stats.draft_count > 0 && is_configured {
-                format!(" ({} drafts)", stats.draft_count)
-            } else {
-                String::new()
-            };
-            
-            let line = Line::from(vec![
-                Span::styled(
-                    format!("{} {}{}", indicator, stats.name, config_indicator),
-                    if stats.is_active {
-                        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-                    } else if !is_configured {
-                        Style::default().fg(Color::Red)
-                    } else {
-                        Style::default()
-                    }
-                ),
-                Span::styled(
-                    draft_info,
-                    Style::default().fg(Color::Yellow)
-                ),
-            ]);
-            
-            ListItem::new(line)
-        })
-        .collect();
+fn draw_projects_list(f: &mut Frame, dashboard: &Dashboard, area: Rect, theme: &Theme) {
+    let items: Vec<ListItem> = if dashboard.project_stats.is_empty() {
+        vec![ListItem::new(Line::from(Span::styled(
+            "No projects found",
+            theme.muted_style(),
+        )))]
+    } else {
+        dashboard
+            .project_stats
+            .iter()
+            .enumerate()
+            .map(|(i, stats)| {
+                let project = &dashboard.projects[i];
+                let is_configured =
+                    project.config.get_source_dir().is_some() && project.config.get_target_dir().is_some();
+
+                let indicator = if stats.is_active { "●" } else { " " };
+                let config_indicator = if !is_configured { " ⚠" } else { "" };
+                let draft_info = if stats.draft_count > 0 && is_configured {
+                    format!(" ({} drafts)", stats.draft_count)
+                } else {
+                    String::new()
+                };
+
+                let line = Line::from(vec![
+                    Span::styled(
+                        format!("{} {}{}", indicator, stats.name, config_indicator),
+                        if stats.is_active {
+                            theme.success_style().add_modifier(Modifier::BOLD)
+                        } else if !is_configured {
+                            theme.danger_style()
+                        } else {
+                            Style::default().fg(theme.text)
+                        },
+                    ),
+                    Span::styled(draft_info, theme.warning_style()),
+                ]);
+
+                ListItem::new(line)
+            })
+            .collect()
+    };
     
     let projects_list = List::new(items)
         .block(
             Block::default()
                 .title("Projects")
                 .borders(Borders::ALL)
+                .border_style(theme.border_style())
         )
-        .highlight_style(
-            Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD)
-        )
-        .highlight_symbol("▶ ");
+        .highlight_style(theme.highlight_style())
+        .highlight_symbol(">> ");
     
     f.render_stateful_widget(projects_list, area, &mut dashboard.list_state.clone());
 }
 
-fn draw_writings_view(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
+fn draw_writings_view(f: &mut Frame, dashboard: &Dashboard, area: Rect, theme: &Theme) {
     // Main content layout
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -776,45 +786,52 @@ fn draw_writings_view(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
         .split(area);
     
     // Writings list
-    draw_writings_list(f, dashboard, main_chunks[0]);
+    draw_writings_list(f, dashboard, main_chunks[0], theme);
     
     // Writing details
-    draw_writing_details(f, dashboard, main_chunks[1]);
+    draw_writing_details(f, dashboard, main_chunks[1], theme);
 }
 
-fn draw_writings_list(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
-    let items: Vec<ListItem> = dashboard
-        .writings
-        .iter()
-        .map(|writing| {
-            let status_icon = if writing.is_draft { "📝" } else { "✅" };
-            let status_color = if writing.is_draft { Color::Yellow } else { Color::Green };
-            
-            // Check if writing is staged and show auto-staging status
-            let staged_indicator = if dashboard.staged_writings.contains(&writing.path) {
-                if dashboard.auto_stage_enabled {
-                    " 🚀⚡" // Staged with auto-staging
+fn draw_writings_list(f: &mut Frame, dashboard: &Dashboard, area: Rect, theme: &Theme) {
+    let items: Vec<ListItem> = if dashboard.writings.is_empty() {
+        vec![ListItem::new(Line::from(Span::styled(
+            "No writings found",
+            theme.muted_style(),
+        )))]
+    } else {
+        dashboard
+            .writings
+            .iter()
+            .map(|writing| {
+                let status_icon = if writing.is_draft { "📝" } else { "✅" };
+                let status_color = if writing.is_draft { theme.warning } else { theme.success };
+
+                // Check if writing is staged and show auto-staging status
+                let staged_indicator = if dashboard.staged_writings.contains(&writing.path) {
+                    if dashboard.auto_stage_enabled {
+                        " 🚀⚡" // Staged with auto-staging
+                    } else {
+                        " 🚀" // Staged without auto-staging
+                    }
                 } else {
-                    " 🚀" // Staged without auto-staging
-                }
-            } else {
-                ""
-            };
-            
-            let line = Line::from(vec![
-                Span::styled(
-                    format!("{} {}", status_icon, writing.title),
-                    Style::default().fg(status_color)
-                ),
-                Span::styled(
-                    staged_indicator,
-                    Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
-                ),
-            ]);
-            
-            ListItem::new(line)
-        })
-        .collect();
+                    ""
+                };
+
+                let line = Line::from(vec![
+                    Span::styled(
+                        format!("{} {}", status_icon, writing.title),
+                        Style::default().fg(status_color),
+                    ),
+                    Span::styled(
+                        staged_indicator,
+                        Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+                    ),
+                ]);
+
+                ListItem::new(line)
+            })
+            .collect()
+    };
     
     let writings_count = dashboard.writings.len();
     let staged_count = dashboard.staged_writings.len();
@@ -832,21 +849,18 @@ fn draw_writings_list(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
             Block::default()
                 .title(title)
                 .borders(Borders::ALL)
+                .border_style(theme.border_style())
         )
-        .highlight_style(
-            Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD)
-        )
-        .highlight_symbol("▶ ");
+        .highlight_style(theme.highlight_style())
+        .highlight_symbol(">> ");
     
     f.render_stateful_widget(writings_list, area, &mut dashboard.writings_list_state.clone());
 }
 
-fn draw_writing_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
+fn draw_writing_details(f: &mut Frame, dashboard: &Dashboard, area: Rect, theme: &Theme) {
     let content = if let Some(writing) = dashboard.writings.get(dashboard.selected_writings_index) {
         let status = if writing.is_draft { "Draft" } else { "Published" };
-        let status_color = if writing.is_draft { Color::Yellow } else { Color::Green };
+        let status_color = if writing.is_draft { theme.warning } else { theme.success };
         
         let lines = vec![
             Line::from(vec![
@@ -867,7 +881,10 @@ fn draw_writing_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
         
         Text::from(lines)
     } else {
-        Text::from("No writing selected")
+        Text::from(Line::from(Span::styled(
+            "No writing selected",
+            theme.muted_style(),
+        )))
     };
     
     let details = Paragraph::new(content)
@@ -875,13 +892,14 @@ fn draw_writing_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
             Block::default()
                 .title("Writing Details")
                 .borders(Borders::ALL)
+                .border_style(theme.border_style())
         )
         .wrap(Wrap { trim: true });
     
     f.render_widget(details, area);
 }
 
-fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
+fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect, theme: &Theme) {
     let content = if let Some(stats) = dashboard.project_stats.get(dashboard.selected_index) {
         let project = &dashboard.projects[dashboard.selected_index];
         
@@ -906,9 +924,9 @@ fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
                 Span::styled(
                     if stats.is_active { "Active" } else { "Inactive" },
                     if stats.is_active {
-                        Style::default().fg(Color::Green)
+                        theme.success_style()
                     } else {
-                        Style::default().fg(Color::Gray)
+                        theme.muted_style()
                     }
                 ),
             ]),
@@ -924,9 +942,9 @@ fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
                     Span::styled(
                         stats.draft_count.to_string(),
                         if stats.draft_count > 0 {
-                            Style::default().fg(Color::Yellow)
+                            theme.warning_style()
                         } else {
-                            Style::default().fg(Color::Green)
+                            theme.success_style()
                         }
                     ),
                 ]),
@@ -952,7 +970,10 @@ fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
             lines.extend(vec![
                 Line::from(""),
                 Line::from(vec![
-                    Span::styled("⚠ Configuration Required", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                    Span::styled(
+                        "Configuration Required",
+                        theme.danger_style().add_modifier(Modifier::BOLD)
+                    ),
                 ]),
                 Line::from(""),
                 Line::from("This project needs to be configured before use."),
@@ -961,24 +982,27 @@ fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
                     Span::raw("Run: "),
                     Span::styled(
                         format!("lazydraft config --edit --project {}", stats.name),
-                        Style::default().fg(Color::Cyan)
+                        Style::default().fg(theme.accent)
                     ),
                 ]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("Source: ", Style::default().add_modifier(Modifier::BOLD)),
-                    Span::styled("not set", Style::default().fg(Color::Red)),
+                    Span::styled("not set", theme.danger_style()),
                 ]),
                 Line::from(vec![
                     Span::styled("Target: ", Style::default().add_modifier(Modifier::BOLD)),
-                    Span::styled("not set", Style::default().fg(Color::Red)),
+                    Span::styled("not set", theme.danger_style()),
                 ]),
             ]);
         }
         
         Text::from(lines)
     } else {
-        Text::from("No project selected")
+        Text::from(Line::from(Span::styled(
+            "No project selected",
+            theme.muted_style(),
+        )))
     };
     
     let details = Paragraph::new(content)
@@ -986,13 +1010,14 @@ fn draw_project_details(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
             Block::default()
                 .title("Project Details")
                 .borders(Borders::ALL)
+                .border_style(theme.border_style())
         )
         .wrap(Wrap { trim: true });
     
     f.render_widget(details, area);
 }
 
-fn draw_overall_stats(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
+fn draw_overall_stats(f: &mut Frame, dashboard: &Dashboard, area: Rect, theme: &Theme) {
     let total_projects = dashboard.projects.len();
     let total_drafts: usize = dashboard.project_stats.iter().map(|s| s.draft_count).sum();
     let total_files: usize = dashboard.project_stats.iter().map(|s| s.total_files).sum();
@@ -1007,7 +1032,7 @@ fn draw_overall_stats(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
             Span::styled("Active Projects: ", Style::default().add_modifier(Modifier::BOLD)),
             Span::styled(
                 active_projects.to_string(),
-                Style::default().fg(Color::Green)
+                theme.success_style()
             ),
         ]),
         Line::from(vec![
@@ -1015,9 +1040,9 @@ fn draw_overall_stats(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
             Span::styled(
                 total_drafts.to_string(),
                 if total_drafts > 0 {
-                    Style::default().fg(Color::Yellow)
+                    theme.warning_style()
                 } else {
-                    Style::default().fg(Color::Green)
+                    theme.success_style()
                 }
             ),
         ]),
@@ -1028,7 +1053,10 @@ fn draw_overall_stats(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
         Line::from(""),
         Line::from(vec![
             Span::styled("Last Update: ", Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(format!("{}s ago", dashboard.last_update.elapsed().as_secs())),
+            Span::styled(
+                format!("{}s ago", dashboard.last_update.elapsed().as_secs()),
+                theme.muted_style(),
+            ),
         ]),
     ]);
     
@@ -1037,25 +1065,39 @@ fn draw_overall_stats(f: &mut Frame, dashboard: &Dashboard, area: Rect) {
             Block::default()
                 .title("Overall Statistics")
                 .borders(Borders::ALL)
+                .border_style(theme.border_style())
         );
     
     f.render_widget(stats, area);
 }
 
-fn draw_footer(f: &mut Frame, area: Rect, view_mode: &ViewMode) {
-    let footer_text = match view_mode {
-        ViewMode::Projects => "q: Quit | h: Help | r: Refresh | ↑↓: Navigate | →: View Writings | Enter: Switch Project",
-        ViewMode::Writings => "q: Quit | h: Help | r: Refresh | ↑↓: Navigate | ←: Back | s: Stage | u: Revert | a: Toggle Auto-stage",
+fn draw_footer(f: &mut Frame, area: Rect, dashboard: &Dashboard, theme: &Theme) {
+    let footer_text = match dashboard.view_mode {
+        ViewMode::Projects => {
+            "q: Quit | h: Help | r: Refresh | ↑↓: Navigate | →: View Writings | Enter: Switch Project"
+                .to_string()
+        }
+        ViewMode::Writings => {
+            let auto_stage = if dashboard.auto_stage_enabled { "ON" } else { "OFF" };
+            format!(
+                "q: Quit | h: Help | r: Refresh | ↑↓: Navigate | ←: Back | s: Stage | u: Revert | a: Auto-stage ({})",
+                auto_stage
+            )
+        }
     };
     
     let footer = Paragraph::new(footer_text)
-        .style(Style::default().fg(Color::Gray))
+        .style(theme.muted_style())
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(theme.border_style()),
+        );
     f.render_widget(footer, area);
 }
 
-fn draw_help_popup(f: &mut Frame) {
+fn draw_help_popup(f: &mut Frame, theme: &Theme) {
     let area = centered_rect(70, 60, f.size());
     
     // Clear the area
@@ -1095,12 +1137,12 @@ fn draw_help_popup(f: &mut Frame) {
     ];
     
     let help_paragraph = Paragraph::new(help_text)
-        .style(Style::default().fg(Color::White))
+        .style(Style::default().fg(theme.text))
         .block(
             Block::default()
                 .title("Help")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan))
+                .border_style(theme.border_style())
         )
         .wrap(Wrap { trim: true });
     
@@ -1129,56 +1171,56 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1] // Return the middle chunk
 }
 
-fn draw_stage_confirm_popup(f: &mut Frame) {
+fn draw_stage_confirm_popup(f: &mut Frame, theme: &Theme) {
     let area = centered_rect(50, 25, f.size());
     
     // Clear the area
     f.render_widget(Clear, area);
     
     let popup = Paragraph::new("Stage this writing?\n\nThis will transfer the content to the target location.\n\ny: Yes | n: No")
-        .style(Style::default().fg(Color::White))
+        .style(Style::default().fg(theme.text))
         .alignment(Alignment::Center)
         .block(
             Block::default()
                 .title("Stage Writing")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow))
+                .border_style(theme.warning_style())
         )
         .wrap(Wrap { trim: true });
     
     f.render_widget(popup, area);
 }
 
-fn draw_revert_confirm_popup(f: &mut Frame) {
+fn draw_revert_confirm_popup(f: &mut Frame, theme: &Theme) {
     let area = centered_rect(50, 25, f.size());
     
     // Clear the area
     f.render_widget(Clear, area);
     
     let popup = Paragraph::new("Revert staging for this writing?\n\nThis will remove it from the staged list.\n\ny: Yes | n: No")
-        .style(Style::default().fg(Color::White))
+        .style(Style::default().fg(theme.text))
         .alignment(Alignment::Center)
         .block(
             Block::default()
                 .title("Revert Staging")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Red))
+                .border_style(theme.danger_style())
         )
         .wrap(Wrap { trim: true });
     
     f.render_widget(popup, area);
 }
 
-fn draw_operation_result_popup(f: &mut Frame, success: bool, message: &str) {
+fn draw_operation_result_popup(f: &mut Frame, success: bool, message: &str, theme: &Theme) {
     let area = centered_rect(60, 20, f.size());
     
     // Clear the area
     f.render_widget(Clear, area);
     
-    let (title, border_color, text_color) = if success {
-        ("Success", Color::Green, Color::White)
+    let (title, border_style, text_color) = if success {
+        ("Success", theme.success_style(), theme.text)
     } else {
-        ("Error", Color::Red, Color::White)
+        ("Error", theme.danger_style(), theme.text)
     };
     
     let popup_text = format!("{}\n\nPress Enter to continue", message);
@@ -1190,7 +1232,7 @@ fn draw_operation_result_popup(f: &mut Frame, success: bool, message: &str) {
             Block::default()
                 .title(title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(border_color))
+                .border_style(border_style)
         )
         .wrap(Wrap { trim: true });
     

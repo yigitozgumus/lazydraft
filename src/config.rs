@@ -4,6 +4,7 @@ use toml;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use crate::cli;
 
 pub type ConfigResult<T> = Result<T, String>;
 
@@ -220,7 +221,10 @@ impl ProjectManager {
             if path.extension().and_then(|s| s.to_str()) == Some("toml") {
                 match self.load_project_from_path(&path) {
                     Ok(project) => projects.push(project),
-                    Err(e) => eprintln!("Warning: Failed to load project from {:?}: {}", path, e),
+                    Err(e) => cli::warn(&format!(
+                        "Failed to load project from {:?}: {}",
+                        path, e
+                    )),
                 }
             }
         }
@@ -357,7 +361,10 @@ impl ProjectManager {
                 let _ = fs::remove_file(&legacy_json_path);
             }
             
-            println!("Migrated legacy configuration to project '{}'", project_name);
+            cli::success(&format!(
+                "Migrated legacy configuration to project '{}'",
+                project_name
+            ));
             return Ok(Some(project_name));
         }
         

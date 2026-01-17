@@ -1,6 +1,6 @@
 use asset::{get_asset_list_of_writing, transfer_asset_files};
-use command::{parse_command, Command, StageOptions, ProjectCommand};
-use config::{validate_config, get_project_manager, Config};
+use command::{parse_command, Command, ProjectCommand, StageOptions};
+use config::{get_project_manager, validate_config, Config};
 use std::env;
 use std::path::Path;
 use writing::{
@@ -12,10 +12,12 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 
 mod asset;
+mod cli;
 mod command;
 mod config;
 mod writing;
 mod dashboard;
+mod tui;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -33,7 +35,7 @@ fn main() {
                         };
                     }
                     Err(e) => {
-                        eprintln!("Error: {}", e);
+                        cli::error(&format!("Error: {}", e));
                         std::process::exit(1);
                     }
                 }
@@ -48,7 +50,7 @@ fn main() {
                         };
                     }
                     Err(e) => {
-                        eprintln!("Error: {}", e);
+                        cli::error(&format!("Error: {}", e));
                         std::process::exit(1);
                     }
                 }
@@ -94,52 +96,46 @@ fn check_config_for_empty_fields(config: &Config) {
 
 fn execute_info_command() {
     let version = env!("CARGO_PKG_VERSION");
-    println!(
-        r#"
-LazyDraft - Version {}
-
-Available Commands:
-  status       - Displays the current status of your drafts and writings.
-  stage        - Stages drafts and transfers content to the target location.
-                 Options:
-                 --continuous: Enables continuous monitoring and staging.
-                 --project <name>: Use specific project instead of active one.
-  config       - Validates and manages configuration settings.
-                 Options:
-                 --edit: Open config file in editor.
-                 --info: Display configuration help.
-                 --project <name>: Edit specific project config.
-  dashboard    - Launch interactive project dashboard (TUI).
-
-Project Management:
-  project list           - List all projects and show active project.
-  project create <name>  - Create a new project with optional description.
-  project switch <name>  - Switch to a different project.
-  project delete <name>  - Delete a project (cannot delete active project).
-  project info [name]    - Show project details (current project if no name).
-  project rename <old> <new> - Rename a project.
-
-Examples:
-  lazydraft dashboard
-  lazydraft project create my-blog "Personal blog content"
-  lazydraft project switch my-blog
-  lazydraft status
-  lazydraft stage --continuous
-
-Documentation and Help:
-  Visit https://github.com/yigitozgumus/lazydraft for more details.
-"#,
-        version
+    cli::header(
+        &format!("LazyDraft {}", version),
+        Some("Draft staging and project workflows"),
     );
+    cli::blank_line();
+    cli::section("Commands");
+    cli::list_item("status      Show drafts and published writings");
+    cli::list_item("stage       Stage drafts and transfer content");
+    cli::list_item("config      Edit or inspect configuration");
+    cli::list_item("dashboard   Launch the interactive TUI");
+    cli::blank_line();
+    cli::section("Stage Options");
+    cli::list_item("--continuous   Watch source folder and stage on changes");
+    cli::list_item("--project <name>  Use a specific project");
+    cli::blank_line();
+    cli::section("Project Management");
+    cli::list_item("project list           List projects and show active");
+    cli::list_item("project create <name>  Create a project");
+    cli::list_item("project switch <name>  Switch active project");
+    cli::list_item("project delete <name>  Delete a project (not active)");
+    cli::list_item("project info [name]    Show project details");
+    cli::list_item("project rename <old> <new>  Rename a project");
+    cli::blank_line();
+    cli::section("Examples");
+    cli::list_item("lazydraft dashboard");
+    cli::list_item("lazydraft project create my-blog \"Personal blog content\"");
+    cli::list_item("lazydraft project switch my-blog");
+    cli::list_item("lazydraft status");
+    cli::list_item("lazydraft stage --continuous");
+    cli::blank_line();
+    cli::section("Documentation");
+    cli::list_item("https://github.com/yigitozgumus/lazydraft");
 }
 
 fn exit_with_message(message: &str) {
-    println!("{}", message);
+    cli::error(message);
     std::process::exit(1);
 }
 
 fn execute_status_command(config: &Config) -> std::io::Result<()> {
-    println!("Here is the current status: ");
     match create_writing_list(config) {
         Ok(writings) => print_writing_list(writings),
         Err(_) => exit_with_message("Couldn't print the writing list!"),
@@ -157,15 +153,15 @@ pub fn execute_config_command(args: Vec<String>) {
     } else if args.contains(&"--info".to_string()) {
         display_config_info();
     } else {
-        println!(
-            "The `config` command allows you to manage the configuration.\n\n\
-            Usage:\n  --edit   Open the config file in your selected editor.\n  \
-            --info   Display information about each configuration option.\n  \
-            --project <name>   Work with specific project config.\n\n\
-            Examples:\n  lazydraft config --edit\n  \
-            lazydraft config --edit --project my-blog\n  \
-            lazydraft config --info"
-        );
+        cli::section("Config Command");
+        cli::list_item("--edit      Open the config file in your editor");
+        cli::list_item("--info      Display details about each setting");
+        cli::list_item("--project <name>  Target a specific project");
+        cli::blank_line();
+        cli::section("Examples");
+        cli::list_item("lazydraft config --edit");
+        cli::list_item("lazydraft config --edit --project my-blog");
+        cli::list_item("lazydraft config --info");
     }
 }
 
@@ -191,7 +187,7 @@ fn open_config_in_editor(project_name: Option<String>) {
                         format!("{}/.config/lazydraft/projects/{}.toml", home, active_name)
                     }
                     _ => {
-                        eprintln!("No active project set and no project specified. Use --project <name> or set an active project.");
+                        cli::warn("No active project set and no project specified. Use --project <name> or set an active project.");
                         return;
                     }
                 }
@@ -200,9 +196,12 @@ fn open_config_in_editor(project_name: Option<String>) {
         
         // Check if config file exists
         if !std::path::Path::new(&config_path).exists() {
-            eprintln!("Config file does not exist: {}", config_path);
+            cli::warn(&format!("Config file does not exist: {}", config_path));
             if let Some(name) = &project_name {
-                eprintln!("Project '{}' not found. Use 'lazydraft project list' to see available projects.", name);
+                cli::warn(&format!(
+                    "Project '{}' not found. Use 'lazydraft project list' to see available projects.",
+                    name
+                ));
             }
             return;
         }
@@ -214,40 +213,62 @@ fn open_config_in_editor(project_name: Option<String>) {
             .expect("Failed to open file with editor");
 
         if status.success() {
-            println!("Config edited successfully.");
+            cli::success("Config edited successfully.");
         } else {
-            eprintln!("Editor exited with an error.");
+            cli::error("Editor exited with an error.");
         }
     } else {
-        eprintln!("HOME environment variable is not set.");
+        cli::error("HOME environment variable is not set.");
     }
 }
 
 fn display_config_info() {
-    println!(
-        r#"
-Configuration Options:
-
-  source_dir                Directory where source files are located.
-  source_asset_dir          Directory where assets for the source are stored.
-  target_dir                Directory where output files are generated.
-  target_asset_dir          Directory where output assets are stored.
-  target_asset_prefix       Prefix for asset links in the generated files.
-  target_hero_image_prefix  Prefix for hero image links in the output.
-  yaml_asset_prefix         Prefix for assets referenced in YAML frontmatter.
-  sanitize_frontmatter      If true, removes empty fields from the frontmatter.
-  auto_add_cover_img        Automatically adds a cover image to the frontmatter.
-  auto_add_hero_img         Automatically adds a hero image to the frontmatter.
-  remove_draft_on_stage     Sets the 'draft' flag to false when staging.
-  add_date_prefix           Adds a date prefix to the file name.
-  remove_wikilinks          Converts wiki-style links to plain markdown links.
-  trim_tags                 Strips a specified prefix from tags in frontmatter.
-  tag_prefix                The prefix to strip from tags when 'trim_tags' is enabled.
-  use_mdx_format            If true, saves output files with the .mdx extension instead of .md.
-
-Use `lazydraft config --edit` to modify these settings.
-"#
+    cli::section("Configuration Options");
+    cli::kv("source_dir", "Directory where source files are located.");
+    cli::kv("source_asset_dir", "Directory where assets for the source are stored.");
+    cli::kv("target_dir", "Directory where output files are generated.");
+    cli::kv("target_asset_dir", "Directory where output assets are stored.");
+    cli::kv("target_asset_prefix", "Prefix for asset links in the generated files.");
+    cli::kv(
+        "target_hero_image_prefix",
+        "Prefix for hero image links in the output.",
     );
+    cli::kv("yaml_asset_prefix", "Prefix for assets referenced in YAML frontmatter.");
+    cli::kv(
+        "sanitize_frontmatter",
+        "If true, removes empty fields from the frontmatter.",
+    );
+    cli::kv(
+        "auto_add_cover_img",
+        "Automatically adds a cover image to the frontmatter.",
+    );
+    cli::kv(
+        "auto_add_hero_img",
+        "Automatically adds a hero image to the frontmatter.",
+    );
+    cli::kv(
+        "remove_draft_on_stage",
+        "Sets the 'draft' flag to false when staging.",
+    );
+    cli::kv("add_date_prefix", "Adds a date prefix to the file name.");
+    cli::kv(
+        "remove_wikilinks",
+        "Converts wiki-style links to plain markdown links.",
+    );
+    cli::kv(
+        "trim_tags",
+        "Strips a specified prefix from tags in frontmatter.",
+    );
+    cli::kv(
+        "tag_prefix",
+        "The prefix to strip from tags when 'trim_tags' is enabled.",
+    );
+    cli::kv(
+        "use_mdx_format",
+        "If true, saves output files with the .mdx extension instead of .md.",
+    );
+    cli::blank_line();
+    cli::info("Use `lazydraft config --edit` to modify these settings.");
 }
 
 fn execute_stage_command(config: &Config, options: StageOptions) -> std::io::Result<()> {
@@ -268,7 +289,7 @@ fn execute_single_stage(config: &Config) -> std::io::Result<()> {
     match transfer_asset_files(config, &asset_list) {
         Ok(_) => match update_writing_content_and_transfer(config, selected_writing, &asset_list) {
             Ok(_) => {
-                println!("Writing transferred successfully.");
+                cli::success("Writing transferred successfully.");
                 Ok(())
             }
             Err(err) => Err(err),
@@ -278,7 +299,7 @@ fn execute_single_stage(config: &Config) -> std::io::Result<()> {
 }
 
 fn execute_continuous_stage(config: &Config) -> std::io::Result<()> {
-    println!("Starting continuous staging mode...");
+    cli::info("Starting continuous staging mode...");
 
     let (tx, rx) = channel();
 
@@ -296,10 +317,10 @@ fn execute_continuous_stage(config: &Config) -> std::io::Result<()> {
         )
         .expect("Failed to start watching directory");
 
-    println!(
+    cli::info(&format!(
         "Watching for changes in: {}",
         config.get_source_dir().unwrap_or_default()
-    );
+    ));
 
     let config = config.clone();
 
@@ -308,7 +329,7 @@ fn execute_continuous_stage(config: &Config) -> std::io::Result<()> {
             Ok(event) => match event {
                 Ok(event) => {
                     if event.kind.is_modify() {
-                        println!("\nChange detected, running stage process...");
+                        cli::info("Change detected, running stage process...");
 
                         match create_writing_list(&config) {
                             Ok(writing_list) => {
@@ -324,25 +345,40 @@ fn execute_continuous_stage(config: &Config) -> std::io::Result<()> {
                                                 match transfer_asset_files(&config, &asset_list) {
                                                         Ok(_) => {
                                                             match update_writing_content_and_transfer(&config, modified_writing, &asset_list) {
-                                                                Ok(_) => println!("Successfully staged changes for: {}", modified_writing.title),
-                                                                Err(e) => eprintln!("Error updating content: {}", e),
+                                                                Ok(_) => cli::success(&format!(
+                                                                    "Staged changes for: {}",
+                                                                    modified_writing.title
+                                                                )),
+                                                                Err(e) => cli::error(&format!(
+                                                                    "Error updating content: {}",
+                                                                    e
+                                                                )),
                                                             }
                                                         }
-                                                        Err(e) => eprintln!("Error transferring assets: {}", e),
+                                                        Err(e) => cli::error(&format!(
+                                                            "Error transferring assets: {}",
+                                                            e
+                                                        )),
                                                     }
                                             }
-                                            Err(e) => eprintln!("Error getting asset list: {}", e),
+                                            Err(e) => cli::error(&format!(
+                                                "Error getting asset list: {}",
+                                                e
+                                            )),
                                         }
                                     }
                                 }
                             }
-                            Err(e) => eprintln!("Error creating writing list: {}", e),
+                            Err(e) => cli::error(&format!(
+                                "Error creating writing list: {}",
+                                e
+                            )),
                         }
                     }
                 }
-                Err(e) => eprintln!("Watch error: {}", e),
+                Err(e) => cli::error(&format!("Watch error: {}", e)),
             },
-            Err(e) => eprintln!("Watch error: {}", e),
+            Err(e) => cli::error(&format!("Watch error: {}", e)),
         }
     }
 }
@@ -356,51 +392,52 @@ fn execute_project_command(cmd: ProjectCommand) -> Result<(), String> {
             let active_project = project_manager.get_active_project()?;
             
             if projects.is_empty() {
-                println!("No projects found. Create one with 'lazydraft project create <name>'");
+                cli::warn("No projects found. Create one with 'lazydraft project create <name>'");
                 return Ok(());
             }
-            
-            println!("LazyDraft Projects:\n");
+            cli::section("Projects");
             for project in projects {
                 let is_active = active_project.as_ref() == Some(&project.name);
-                let marker = if is_active { "●" } else { " " };
+                let marker = if is_active { "*" } else { " " };
                 
                 let source = project.config.get_source_dir().unwrap_or_else(|| "not set".to_string());
                 let target = project.config.get_target_dir().unwrap_or_else(|| "not set".to_string());
                 
-                println!("  {} {}", marker, project.name);
+                cli::list_item(&format!("{} {}", marker, project.name));
                 if let Some(desc) = &project.description {
-                    println!("    {}", desc);
+                    cli::kv("Description", desc);
                 }
-                println!("    {} → {}", source, target);
+                cli::kv("Paths", format!("{} -> {}", source, target));
                 if let Some(last_used) = &project.last_used {
-                    println!("    Last used: {}", format_timestamp(last_used));
+                    cli::kv("Last used", format_timestamp(last_used));
                 }
-                println!();
+                cli::blank_line();
             }
             
             if let Some(active) = active_project {
-                println!("Active project: {}", active);
+                cli::info(&format!("Active project: {}", active));
             } else {
-                println!("No active project set. Use 'lazydraft project switch <name>' to select one.");
+                cli::warn("No active project set. Use 'lazydraft project switch <name>' to select one.");
             }
         }
         ProjectCommand::Create { name, description } => {
             let project = project_manager.create_project(&name, description)?;
-            println!("Created project '{}'", project.name);
+            cli::success(&format!("Created project '{}'", project.name));
             
             // Set as active if it's the first project
             let projects = project_manager.list_projects()?;
             if projects.len() == 1 {
                 project_manager.set_active_project(&name)?;
-                println!("Set '{}' as active project", name);
+                cli::success(&format!("Set '{}' as active project", name));
             }
-            
-            println!("Configure it with 'lazydraft config --project {}'", name);
+            cli::info(&format!(
+                "Configure it with 'lazydraft config --project {}'",
+                name
+            ));
         }
         ProjectCommand::Switch { name } => {
             project_manager.set_active_project(&name)?;
-            println!("Switched to project '{}'", name);
+            cli::success(&format!("Switched to project '{}'", name));
         }
         ProjectCommand::Delete { name } => {
             // Check if it's the active project
@@ -411,7 +448,7 @@ fn execute_project_command(cmd: ProjectCommand) -> Result<(), String> {
             }
             
             project_manager.delete_project(&name)?;
-            println!("Deleted project '{}'", name);
+            cli::success(&format!("Deleted project '{}'", name));
         }
         ProjectCommand::Info { name } => {
             let project_name = match name {
@@ -421,18 +458,18 @@ fn execute_project_command(cmd: ProjectCommand) -> Result<(), String> {
             
             let project = project_manager.load_project(&project_name)?;
             
-            println!("Project: {}", project.name);
+            cli::section(&format!("Project: {}", project.name));
             if let Some(desc) = &project.description {
-                println!("Description: {}", desc);
+                cli::kv("Description", desc);
             }
             if let Some(created) = &project.created_at {
-                println!("Created: {}", format_timestamp(created));
+                cli::kv("Created", format_timestamp(created));
             }
             if let Some(last_used) = &project.last_used {
-                println!("Last used: {}", format_timestamp(last_used));
+                cli::kv("Last used", format_timestamp(last_used));
             }
-            
-            println!("\nConfiguration:");
+            cli::blank_line();
+            cli::section("Configuration");
             print_config_summary(&project.config);
         }
         ProjectCommand::Rename { old_name, new_name } => {
@@ -450,7 +487,7 @@ fn execute_project_command(cmd: ProjectCommand) -> Result<(), String> {
                 }
             }
             
-            println!("Renamed project '{}' to '{}'", old_name, new_name);
+            cli::success(&format!("Renamed project '{}' to '{}'", old_name, new_name));
         }
     }
     
@@ -465,10 +502,22 @@ fn format_timestamp(timestamp: &str) -> String {
 }
 
 fn print_config_summary(config: &Config) {
-    println!("  Source: {}", config.get_source_dir().unwrap_or_else(|| "not set".to_string()));
-    println!("  Target: {}", config.get_target_dir().unwrap_or_else(|| "not set".to_string()));
-    println!("  Source Assets: {}", config.get_source_asset_dir().unwrap_or_else(|| "not set".to_string()));
-    println!("  Target Assets: {}", config.get_target_asset_dir().unwrap_or_else(|| "not set".to_string()));
+    cli::kv(
+        "Source",
+        config.get_source_dir().unwrap_or_else(|| "not set".to_string()),
+    );
+    cli::kv(
+        "Target",
+        config.get_target_dir().unwrap_or_else(|| "not set".to_string()),
+    );
+    cli::kv(
+        "Source Assets",
+        config.get_source_asset_dir().unwrap_or_else(|| "not set".to_string()),
+    );
+    cli::kv(
+        "Target Assets",
+        config.get_target_asset_dir().unwrap_or_else(|| "not set".to_string()),
+    );
     
     let mut features = Vec::new();
     if config.sanitize_frontmatter.unwrap_or(false) { features.push("sanitize frontmatter"); }
@@ -481,6 +530,6 @@ fn print_config_summary(config: &Config) {
     if config.use_mdx_format.unwrap_or(false) { features.push("MDX format"); }
     
     if !features.is_empty() {
-        println!("  Features: {}", features.join(", "));
+        cli::kv("Features", features.join(", "));
     }
 }

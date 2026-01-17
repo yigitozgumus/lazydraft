@@ -6,6 +6,7 @@ use std::{
 
 use crate::{
     asset::Asset,
+    cli,
     config::{Config, HeroImage, Image},
 };
 use chrono::NaiveDate;
@@ -40,12 +41,12 @@ impl Writing {
 }
 
 pub fn print_writing_list(writings: Vec<Writing>) {
-    // Print table header (Publish Date comes after Status, Title is last)
+    cli::section("Writings");
     println!(
         "{:<5} {:<12} {:<12} {:<30}",
         "#", "Status", "Publish Date", "Title"
     );
-    println!("{}", "-".repeat(65));
+    cli::divider_with(65);
 
     let mut draft_count = 0;
     let mut published_count = 0;
@@ -70,13 +71,15 @@ pub fn print_writing_list(writings: Vec<Writing>) {
             writing.title
         );
     }
-    println!("{}", "-".repeat(65));
-    println!(
-        "Summary: {} draft(s), {} published writing(s)",
-        draft_count.to_string().yellow(),
-        published_count.to_string().green()
+    cli::divider_with(65);
+    cli::kv(
+        "Summary",
+        format!(
+            "{} draft(s), {} published writing(s)",
+            draft_count.to_string().yellow(),
+            published_count.to_string().green()
+        ),
     );
-    // The table format and colorization make it easier to scan the status of writings.
 }
 
 pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writing> {
@@ -86,7 +89,7 @@ pub fn select_draft_writing_from_list(writings: &Vec<Writing>) -> Option<&Writin
         .collect();
 
     if draft_writings.is_empty() {
-        println!("No draft writings available");
+        cli::warn("No draft writings available");
         return None;
     }
 
