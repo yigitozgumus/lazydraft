@@ -96,10 +96,9 @@ fn check_config_for_empty_fields(config: &Config) {
 
 fn execute_info_command() {
     let version = env!("CARGO_PKG_VERSION");
-    cli::header(
-        &format!("LazyDraft {}", version),
-        Some("Draft staging and project workflows"),
-    );
+    cli::header("LazyDraft", Some(&format!("Version {}", version)));
+    cli::blank_line();
+    cli::info("Draft staging and project workflows");
     cli::blank_line();
     cli::section("Commands");
     cli::list_item("status      Show drafts and published writings");
