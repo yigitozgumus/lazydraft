@@ -310,11 +310,12 @@ impl Dashboard {
     }
 
     pub fn request_quit(&mut self) {
-        self.quit_requested = Some(Instant::now());
+        // show_popup clears quit_requested, so we set it after
         self.show_popup(PopupType::OperationResult {
             success: true,
             message: "Press q again to quit, or Esc to cancel.".to_string(),
         });
+        self.quit_requested = Some(Instant::now());
     }
 
     pub fn toggle_auto_stage(&mut self) {
