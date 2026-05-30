@@ -3,7 +3,6 @@ use ratatui::style::{Color, Modifier, Style};
 #[derive(Clone, Copy)]
 pub struct Theme {
     pub accent: Color,
-    pub accent_soft: Color,
     pub border: Color,
     pub text: Color,
     pub muted: Color,
@@ -18,7 +17,6 @@ impl Theme {
     pub fn default() -> Self {
         Self {
             accent: Color::Rgb(238, 174, 96),
-            accent_soft: Color::Rgb(206, 157, 98),
             border: Color::Rgb(62, 64, 68),
             text: Color::Rgb(230, 230, 230),
             muted: Color::Rgb(140, 140, 140),

@@ -23,7 +23,6 @@ pub enum ProjectCommand {
 #[derive(Debug, Clone)]
 pub struct StageOptions {
     pub continuous: bool,
-    pub project: Option<String>,
 }
 
 impl fmt::Display for Command {
@@ -72,8 +71,7 @@ pub fn parse_command(args: &[String]) -> Option<Command> {
         }
         "stage" => {
             let continuous = args.contains(&"--continuous".to_string());
-            let project = extract_project_flag(args);
-            Some(Command::Stage(StageOptions { continuous, project }))
+            Some(Command::Stage(StageOptions { continuous }))
         }
         "config" => Some(Command::Config),
         "info" => Some(Command::Info),

@@ -7,14 +7,14 @@ use std::{
 use crate::{
     asset::Asset,
     cli,
-    config::{Config, HeroImage, Image},
+    config::Config,
+    frontmatter,
 };
 use chrono::NaiveDate;
 use colored::*;
 use dialoguer::Select;
 use itertools::Itertools;
-use regex::Regex;
-use serde_yaml::Value;
+
 use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]
@@ -22,7 +22,7 @@ pub struct Writing {
     pub path: String,
     pub title: String,
     pub is_draft: bool,
-    publish_date: Option<NaiveDate>,
+    pub publish_date: Option<NaiveDate>,
 }
 
 impl Writing {
@@ -124,26 +124,26 @@ pub fn update_writing_content_and_transfer(
             modifiable_frontmatter["draft"] = serde_yaml::to_value(false).expect("disable draft");
         }
         if config.sanitize_frontmatter.unwrap_or(false) {
-            remove_empty_values(&mut modifiable_frontmatter);
+            frontmatter::remove_empty_values(&mut modifiable_frontmatter);
         }
         if config.auto_add_cover_img.unwrap_or(false) {
-            add_cover_image(&mut modifiable_frontmatter, config, &asset_list);
+            frontmatter::add_cover_image(&mut modifiable_frontmatter, config, &asset_list);
         }
         if config.auto_add_hero_img.unwrap_or(false) {
-            add_hero_image(&mut modifiable_frontmatter, config, &asset_list);
+            frontmatter::add_hero_image(&mut modifiable_frontmatter, config, &asset_list);
         }
         if config.trim_tags.unwrap_or(false) {
-            strip_tags(
+            frontmatter::strip_tags(
                 &mut modifiable_frontmatter,
                 &config.tag_prefix.as_deref().unwrap_or(""),
             );
         }
-        let mut updated_content = change_image_formats(markdown_content, config);
+        let mut updated_content = frontmatter::change_image_formats(markdown_content, config);
         if config.remove_wikilinks.unwrap_or(false) {
-            updated_content = strip_wikilinks(updated_content.to_string());
+            updated_content = frontmatter::strip_wikilinks(updated_content.to_string());
         }
 
-        let writing_name = create_writing_name(&mut modifiable_frontmatter, config, writing);
+        let writing_name = frontmatter::create_writing_name(&mut modifiable_frontmatter, config, &writing.path);
 
         let target_dir = config
             .get_target_dir()
@@ -179,174 +179,7 @@ pub fn update_writing_content_and_transfer(
     }
 }
 
-pub fn strip_tags(frontmatter: &mut serde_yaml::Value, tag_prefix: &str) {
-    if let Some(tags) = frontmatter.get_mut("tags") {
-        if let Some(tag_list) = tags.as_sequence_mut() {
-            for tag in tag_list.iter_mut() {
-                if let Some(tag_str) = tag.as_str() {
-                    if let Some(stripped) = tag_str.strip_prefix(tag_prefix) {
-                        *tag = serde_yaml::Value::String(stripped.to_string());
-                    }
-                }
-            }
-        }
-    }
-}
 
-fn change_image_formats(content: String, config: &Config) -> String {
-    let pattern = match Regex::new(r"!\[\[(.*?)\]\]") {
-        Ok(pattern) => Some(pattern),
-        Err(_) => None,
-    }
-    .expect("Failed to create Wikilink Regex");
-    let target_prefix = &config.target_asset_prefix;
-    pattern
-        .replace_all(&content, |caps: &regex::Captures| {
-            if let Some(link) = caps.get(1) {
-                format!(
-                    "![]({}/{})",
-                    target_prefix.as_deref().unwrap_or(""),
-                    link.as_str()
-                )
-            } else {
-                caps.get(0).unwrap().as_str().to_string()
-            }
-        })
-        .clone()
-        .to_string()
-}
-
-fn strip_wikilinks(content: String) -> String {
-    let pattern = match Regex::new(r"\[\[(.*?)\]\]") {
-        Ok(pattern) => Some(pattern),
-        Err(_) => None,
-    }
-    .expect("Failed to create Wikilink Regex");
-    pattern
-        .replace_all(&content, |caps: &regex::Captures| {
-            if let Some(link) = caps.get(1) {
-                format!("{}", link.as_str())
-            } else {
-                caps.get(0).unwrap().as_str().to_string()
-            }
-        })
-        .clone()
-        .to_string()
-}
-
-fn create_writing_name(frontmatter: &mut Value, config: &Config, writing: &Writing) -> String {
-    let mut writing_name = Path::new(&writing.path)
-        .file_name()
-        .expect("Could not parse writing name")
-        .to_str()
-        .expect("Parsed writing name shouldn't be empty")
-        .to_string();
-
-    let publish_date = frontmatter["publishDate"].as_str().unwrap_or("");
-
-    if config.add_date_prefix.unwrap_or(false) && !publish_date.is_empty() {
-        let concatenation = format!("{}-{}", &publish_date, &writing_name).to_string();
-        writing_name = concatenation;
-    }
-    writing_name
-}
-
-fn add_cover_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<Asset>) {
-    let asset_prefix = frontmatter["assetPrefix"].as_str().unwrap_or("");
-    if asset_prefix.is_empty() {
-        return;
-    }
-    let property_to_check = String::from(asset_prefix) + "-header";
-    let matching_assets: Vec<&Asset> = asset_list
-        .iter()
-        .filter(|asset| asset.asset_path.contains(&property_to_check))
-        .collect();
-    if !matching_assets.is_empty() {
-        let target_prefix = &config
-            .target_asset_prefix
-            .as_ref()
-            .expect("target asset prefix should be set");
-        let header_name = Path::new(
-            matching_assets
-                .first()
-                .expect("Header asset must exist")
-                .asset_path
-                .as_str(),
-        )
-        .file_name()
-        .expect("Header asset name should be valid");
-        let cover_img = Image {
-            path: Path::new(target_prefix)
-                .join(header_name)
-                .as_path()
-                .display()
-                .to_string(),
-            alt: "Cover Image".to_string(),
-        };
-        frontmatter["image"] =
-            serde_yaml::to_value(&cover_img).expect("Cover Image format should match");
-    }
-}
-
-fn add_hero_image(frontmatter: &mut Value, config: &Config, asset_list: &Vec<Asset>) {
-    let asset_prefix = frontmatter["assetPrefix"].as_str().unwrap_or("");
-    if asset_prefix.is_empty() {
-        return;
-    }
-    let property_to_check = String::from(asset_prefix) + "-header";
-    let matching_assets: Vec<&Asset> = asset_list
-        .iter()
-        .filter(|asset| asset.asset_path.contains(&property_to_check))
-        .collect();
-    if !matching_assets.is_empty() {
-        let target_prefix = &config
-            .target_hero_image_prefix
-            .as_ref()
-            .expect("target hero image prefix should be set");
-        let header_name = Path::new(
-            matching_assets
-                .first()
-                .expect("Header asset must exist")
-                .asset_path
-                .as_str(),
-        )
-        .file_name()
-        .expect("Header asset name should be valid");
-        let cover_img = HeroImage {
-            path: Path::new(target_prefix)
-                .join(header_name)
-                .as_path()
-                .display()
-                .to_string(),
-            alt: "Social Cover Image".to_string(),
-        };
-        frontmatter["heroImage"] =
-            serde_yaml::to_value(&cover_img).expect("Cover Image format should match");
-    }
-}
-
-fn remove_empty_values(value: &mut Value) {
-    match value {
-        Value::Mapping(mapping) => {
-            let keys: Vec<_> = mapping
-                .iter()
-                .filter_map(|(k, v)| if v.is_null() { Some(k.clone()) } else { None })
-                .collect();
-
-            for key in keys {
-                mapping.remove(&key);
-            }
-
-            for (_, v) in mapping.iter_mut() {
-                remove_empty_values(v);
-            }
-        }
-        Value::Sequence(seq) => {
-            seq.iter_mut().for_each(|v| remove_empty_values(v));
-        }
-        _ => {}
-    }
-}
 
 pub fn read_markdown_file(
     file_path: &String,
